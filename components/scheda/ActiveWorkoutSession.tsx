@@ -17,7 +17,7 @@ import {
   SkipForward,
   Timer,
 } from "lucide-react-native";
-import type { WorkoutDay } from "@/types";
+import type { Exercise, WorkoutDay } from "@/types";
 import { isApiError } from "@/lib/api";
 import {
   markWorkoutCompleted,
@@ -25,8 +25,19 @@ import {
 } from "@/lib/workoutQueries";
 import { Card } from "@/components/home/Card";
 
-/** Recupero standard tra le serie (secondi). */
-const REST_SECONDS = 90;
+/** Recupero usato quando la scheda non indica un riposo specifico (secondi). */
+const DEFAULT_REST_SECONDS = 90;
+
+/**
+ * Recupero in secondi di un esercizio: quello impostato nella scheda
+ * ("Riposo (s)" del form di modifica), altrimenti il default. Un riposo
+ * a 0 significa "non indicato" e cade sul default.
+ */
+function restSecondsFor(exercise: Exercise): number {
+  return exercise.restSeconds && exercise.restSeconds > 0
+    ? exercise.restSeconds
+    : DEFAULT_REST_SECONDS;
+}
 
 type SetLog = {
   completed: boolean;
@@ -65,6 +76,13 @@ type ActiveWorkoutSessionProps = {
 export function ActiveWorkoutSession({ day }: ActiveWorkoutSessionProps) {
   const [index, setIndex] = useState(0);
   const [logs, setLogs] = useState<ExerciseLogs>(() => initLogs(day));
+  /**
+   * Recupero in corso: `seconds` è la durata prevista dalla scheda. Identità
+   * **nuova** a ogni avvio, così l'effect qui sotto riparte anche quando due
+   * recuperi consecutivi hanno la stessa durata. null = nessun recupero.
+   */
+  const [rest, setRest] = useState<{ seconds: number } | null>(null);
+  /** Secondi rimanenti, aggiornati dall'interval del recupero. */
   const [restRemaining, setRestRemaining] = useState<number | null>(null);
   const [finishError, setFinishError] = useState<string | null>(null);
   // `Date.now` è impuro: il timestamp d'inizio sessione viene preso in un
@@ -89,14 +107,33 @@ export function ActiveWorkoutSession({ day }: ActiveWorkoutSessionProps) {
       ? 0
       : Math.min(1, (index + completedInCurrent / currentLog.length) / totalExercises);
 
-  // Countdown del recupero: -1 ogni secondo.
+  // Countdown del recupero: la scadenza si calcola qui dentro (Date.now è
+  // impuro e nel corpo del componente il lint lo vieta) e il countdown la
+  // rilegge a ogni scatto invece di fare -1 a scatti: così non deriva con i
+  // ritardi di setTimeout e, se l'app va in background dove i timer JS si
+  // fermano, al ritorno si riallinea sul valore giusto.
   useEffect(() => {
-    if (restRemaining === null || restRemaining <= 0) return;
-    const timeout = setTimeout(() => {
-      setRestRemaining((value) => (value === null ? null : value - 1));
-    }, 1000);
-    return () => clearTimeout(timeout);
-  }, [restRemaining]);
+    if (rest === null) return;
+    const endsAt = Date.now() + rest.seconds * 1000;
+    const interval = setInterval(() => {
+      const left = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
+      setRestRemaining(left);
+      if (left <= 0) clearInterval(interval);
+    }, 250);
+    return () => clearInterval(interval);
+  }, [rest]);
+
+  /** Avvia il recupero previsto dall'esercizio: nessun calcolo temporale. */
+  function startRest(seconds: number) {
+    setRest({ seconds });
+    setRestRemaining(seconds);
+  }
+
+  /** Chiude il recupero (salto manuale o passaggio all'esercizio dopo). */
+  function endRest() {
+    setRest(null);
+    setRestRemaining(null);
+  }
 
   function updateSet(setIndex: number, patch: Partial<SetLog>) {
     setLogs((prev) =>
@@ -111,15 +148,15 @@ export function ActiveWorkoutSession({ day }: ActiveWorkoutSessionProps) {
   function handleToggleSet(setIndex: number) {
     const wasCompleted = currentLog[setIndex].completed;
     updateSet(setIndex, { completed: !wasCompleted });
-    // Completare una serie avvia il recupero.
+    // Completare una serie avvia il recupero impostato per quell'esercizio.
     if (!wasCompleted) {
-      setRestRemaining(REST_SECONDS);
+      startRest(restSecondsFor(current));
     }
   }
 
   function handleNext() {
     if (!allSetsDone || isLast) return;
-    setRestRemaining(null);
+    endRest();
     setIndex((value) => value + 1);
   }
 
@@ -220,7 +257,7 @@ export function ActiveWorkoutSession({ day }: ActiveWorkoutSessionProps) {
             </View>
             {!isRestDone ? (
               <Pressable
-                onPress={() => setRestRemaining(null)}
+                onPress={endRest}
                 accessibilityRole="button"
                 accessibilityLabel="Salta il recupero"
                 className="flex-row cursor-pointer items-center gap-1.5 rounded-xl border border-border bg-background/60 px-3.5 py-2.5 active:opacity-80"
@@ -244,7 +281,9 @@ export function ActiveWorkoutSession({ day }: ActiveWorkoutSessionProps) {
               </Text>
               <View className="mt-1 flex-row items-center flex-wrap gap-1.5">
                 <Text className="font-sans text-xs text-muted">
-                  {current.sets} serie programmate · {current.weightKg > 0 ? `${current.weightKg} kg` : "peso libero"}
+                  {current.sets} serie programmate ·{" "}
+                  {current.weightKg > 0 ? `${current.weightKg} kg` : "peso libero"}
+                  {current.restSeconds ? ` · riposo ${current.restSeconds} s` : ""}
                 </Text>
                 <View className="rounded-full bg-background/60 px-2.5 py-0.5">
                   <Text className="font-inter-semibold text-xs text-foreground">
