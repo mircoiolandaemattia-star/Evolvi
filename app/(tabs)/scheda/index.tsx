@@ -9,14 +9,20 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { useFocusEffect } from "expo-router";
-import { Check, CheckCircle2, Moon, PenLine, Plus, RefreshCw, X } from "lucide-react-native";
+import { router, useFocusEffect } from "expo-router";
+import { Check, CheckCircle2, Moon, PenLine, Plus, RefreshCw, Timer, X } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { Card } from "@/components/home/Card";
 import { useIsStandalone } from "@/lib/useStandalone";
 import { getDayLabel, getTodayDayOfWeek, WEEKDAYS } from "@/lib/mock-data";
 import { isApiError } from "@/lib/api";
 import { confirmAction, notify } from "@/lib/feedback";
+import {
+  clearActiveWorkout,
+  formatDraftWhen,
+  loadActiveWorkout,
+  type ActiveWorkoutDraft,
+} from "@/lib/activeWorkout";
 import type { DayOfWeek, WorkoutDay } from "@/types";
 import {
   consumeWorkoutCompletedNotice,
@@ -56,6 +62,8 @@ export default function SchedaScreen() {
   const [modalOpen, setModalOpen] = useState(false);
   const [expandedDayId, setExpandedDayId] = useState<string | null>(null);
   const [showCompleted, setShowCompleted] = useState(false);
+  // Sessione sospesa (app chiusa a metà allenamento): banner di ripresa.
+  const [suspended, setSuspended] = useState<ActiveWorkoutDraft | null>(null);
 
   // Modifica della scheda: giorno aperto nel form di modifica, giorno vuoto
   // da riempire (preselezione del weekday) e rinomina del piano.
@@ -81,14 +89,19 @@ export default function SchedaScreen() {
   // Giorno aperto nel form di modifica (null = nessuna modifica in corso).
   const editingDay = days.find((day) => day.id === editingDayId) ?? null;
 
-  // Al ritorno dall'allenamento attivo: mostra il messaggio una volta sola.
+  // Al ritorno dall'allenamento attivo: mostra il messaggio una volta sola
+  // e ricarica l'eventuale sessione sospesa (banner di ripresa).
   useFocusEffect(
     useCallback(() => {
+      void loadActiveWorkout().then(setSuspended);
+      let timer: ReturnType<typeof setTimeout> | undefined;
       if (consumeWorkoutCompletedNotice()) {
         setShowCompleted(true);
-        const timer = setTimeout(() => setShowCompleted(false), 6000);
-        return () => clearTimeout(timer);
+        timer = setTimeout(() => setShowCompleted(false), 6000);
       }
+      return () => {
+        if (timer) clearTimeout(timer);
+      };
     }, []),
   );
 
@@ -120,6 +133,32 @@ export default function SchedaScreen() {
   /** Apre il form di modifica sul giorno scelto (matita nella card). */
   function openEditDay(dayId: string) {
     setEditingDayId(dayId);
+  }
+
+  /* ------------------------ Sessione sospesa ------------------------ */
+
+  /** Riprende l'allenamento lasciato a metà aprendo il suo giorno. */
+  function resumeSuspended() {
+    if (!suspended) return;
+    router.push({
+      pathname: "/(tabs)/scheda/allenamento/[dayId]",
+      params: { dayId: suspended.dayId, resume: "1" },
+    });
+  }
+
+  /** Scarta la sessione sospesa dopo conferma (le serie vengono perse). */
+  async function discardSuspended() {
+    if (!suspended) return;
+    const accepted = await confirmAction({
+      title: "Scarta la sessione?",
+      message: `Le serie già registrate su “${suspended.dayName}” verranno cancellate.`,
+      confirmLabel: "Scarta",
+      cancelLabel: "Annulla",
+      destructive: true,
+    });
+    if (!accepted) return;
+    await clearActiveWorkout();
+    setSuspended(null);
   }
 
   /** Apre il form di creazione con il weekday già selezionato (card vuota). */
@@ -404,6 +443,57 @@ export default function SchedaScreen() {
             >
               <X size={16} color="#94A3B8" strokeWidth={2.2} />
             </Pressable>
+          </View>
+        ) : null}
+
+        {/* Sessione sospesa: l'utente ha chiuso l'app a metà allenamento */}
+        {suspended ? (
+          <View className="gap-3 rounded-2xl border border-primary/40 bg-primary/10 px-4 py-3.5">
+            <View className="flex-row items-center gap-3">
+              <View className="h-10 w-10 items-center justify-center rounded-xl bg-primary/15">
+                <Timer size={20} color="#F97316" strokeWidth={2.2} />
+              </View>
+              <View className="flex-1">
+                <Text className="font-inter-semibold text-base text-foreground">
+                  Allenamento in corso
+                </Text>
+                <Text className="mt-0.5 font-sans text-xs text-muted">
+                  {suspended.dayName} · iniziata {formatDraftWhen(suspended.startedAt)} ·{" "}
+                  {suspended.logs.reduce(
+                    (sum, line) => sum + line.filter((set) => set.completed).length,
+                    0,
+                  )}{" "}
+                  serie completate
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => setSuspended(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Nascondi il messaggio"
+                hitSlop={8}
+                className="cursor-pointer p-1 active:opacity-60"
+              >
+                <X size={16} color="#94A3B8" strokeWidth={2.2} />
+              </Pressable>
+            </View>
+            <View className="flex-row gap-2">
+              <Pressable
+                onPress={resumeSuspended}
+                accessibilityRole="button"
+                accessibilityLabel="Riprendi l'allenamento in corso"
+                className="flex-1 cursor-pointer items-center rounded-xl bg-primary py-2.5 active:opacity-80"
+              >
+                <Text className="font-inter-bold text-sm text-primary-foreground">Riprendi</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => void discardSuspended()}
+                accessibilityRole="button"
+                accessibilityLabel="Scarta la sessione salvata"
+                className="flex-1 cursor-pointer items-center rounded-xl border border-border bg-surface py-2.5 active:opacity-80"
+              >
+                <Text className="font-inter-semibold text-sm text-muted">Scarta</Text>
+              </Pressable>
+            </View>
           </View>
         ) : null}
 

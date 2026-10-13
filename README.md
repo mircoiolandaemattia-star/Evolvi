@@ -58,6 +58,7 @@ lib/
   ├── auth.tsx            contesto autenticazione (Supabase Auth: login/registro/logout reali)
   ├── supabase.ts         client Supabase (sessioni in AsyncStorage, guard SSR per il web)
   ├── storage.ts          helper AsyncStorage
+  ├── activeWorkout.ts    sessione di allenamento sospesa (bozza in AsyncStorage: ripresa dopo chiusura)
   ├── profileQueries.ts   React Query: /users/me + creazione profilo (onboarding)
   ├── aiQueries.ts        React Query: /ai/meal-photo, workout-generate, diet-generate, file-read
   ├── fileReader.ts       documento scelto → base64 + MIME per /ai/file-read (web e native)

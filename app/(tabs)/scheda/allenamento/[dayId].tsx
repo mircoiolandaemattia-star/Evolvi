@@ -9,7 +9,8 @@ import { ActiveWorkoutSession } from "@/components/scheda/ActiveWorkoutSession";
  * del piano attivo (giorni/esercizi annidati), non da dati locali.
  */
 export default function WorkoutDetailScreen() {
-  const { dayId } = useLocalSearchParams<{ dayId: string }>();
+  // `resume=1` arriva dal banner "Riprendi": ripristina senza chiedere.
+  const { dayId, resume } = useLocalSearchParams<{ dayId: string; resume?: string }>();
 
   const plansQuery = useWorkoutPlans();
   const plans = plansQuery.data ?? [];
@@ -46,7 +47,7 @@ export default function WorkoutDetailScreen() {
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background">
-      <ActiveWorkoutSession day={day} />
+      <ActiveWorkoutSession day={day} autoResume={resume === "1"} />
     </SafeAreaView>
   );
 }

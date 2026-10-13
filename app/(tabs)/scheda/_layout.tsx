@@ -16,7 +16,9 @@ export default function SchedaLayout() {
       }}
     >
       <Stack.Screen name="index" />
-      <Stack.Screen name="allenamento/[dayId]" />
+      {/* Swipe-back disattivo: l'uscita dall'allenamento chiede conferma
+          (e mette la sessione in pausa), non deve poter scappare via gesto. */}
+      <Stack.Screen name="allenamento/[dayId]" options={{ gestureEnabled: false }} />
     </Stack>
   );
 }
