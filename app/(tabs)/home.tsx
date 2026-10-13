@@ -112,6 +112,20 @@ export default function HomeScreen() {
     [sessionsQuery.data],
   );
 
+  // Sessione chiusa oggi sul giorno programmato: la card "Allenamento di
+  // oggi" passa così da "Inizia" ad "Allenamento completato".
+  const todaySession = useMemo(() => {
+    if (!workoutDay) return null;
+    const sessions = (sessionsQuery.data ?? [])
+      .filter(
+        (session) =>
+          session.dayId === workoutDay.id &&
+          dateToString(new Date(session.endedAt)) === today,
+      )
+      .sort((a, b) => Date.parse(b.endedAt) - Date.parse(a.endedAt));
+    return sessions[0] ?? null;
+  }, [sessionsQuery.data, workoutDay, today]);
+
   const data = useMemo(
     () => ({
       greeting: getGreeting(new Date()),
@@ -151,7 +165,7 @@ export default function HomeScreen() {
             <MealsSummaryCard meals={mealsToday} />
           </View>
           <View className="flex-1 gap-4">
-            <WorkoutTodayCard day={workoutDay} />
+            <WorkoutTodayCard day={workoutDay} session={todaySession} />
             <QuickStats stats={stats} />
           </View>
         </View>
@@ -159,7 +173,7 @@ export default function HomeScreen() {
         /* Layout mobile: tutto verticale */
         <View className="w-full gap-4">
           <CalorieRing consumed={consumed} target={target} />
-          <WorkoutTodayCard day={workoutDay} />
+          <WorkoutTodayCard day={workoutDay} session={todaySession} />
           <MealsSummaryCard meals={mealsToday} />
           <QuickStats stats={stats} />
         </View>
