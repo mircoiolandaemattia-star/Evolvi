@@ -60,3 +60,4 @@ example
 .dbpasswd.txt
 skills-lock.json
 .agents/
+__pycache__/
