@@ -7,7 +7,10 @@ import { parse } from "./validate";
 
 const genderSchema = z.enum(["male", "female", "other"]);
 const goalSchema = z.enum(["lose", "maintain", "gain"]);
-const activityLevelSchema = z.enum(["sedentary", "light", "moderate", "active", "very_active"]);
+// I quattro livelli che l'app espone in onboarding e profilo. Un quinto
+// ("very_active") non ha corrispondente nell'UI: restava raggiungibile
+// solo dal database e veniva ricalcolato con il moltiplicatore sbagliato.
+const activityLevelSchema = z.enum(["sedentary", "light", "moderate", "active"]);
 
 /** Data di nascita "YYYY-MM-DD", non futura (l'età del TDEE si calcola da qui). */
 const birthDateSchema = z.iso.date().refine((value) => value <= todayIso(), {

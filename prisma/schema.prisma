@@ -17,7 +17,7 @@ model users {
   height_cm               Float?
   weight_kg               Float?
   goal                    String // "lose" | "maintain" | "gain"
-  activity_level          String // "sedentary" | "light" | "moderate" | "active" | "very_active"
+  activity_level          String // "sedentary" | "light" | "moderate" | "active"
   daily_calorie_target    Int?
   protein_target_g        Int?
   carbs_target_g          Int?

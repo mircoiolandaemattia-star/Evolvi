@@ -33,7 +33,7 @@ export interface CreateProfileInput {
   height_cm: number;
   weight_kg: number;
   goal: "lose" | "maintain" | "gain";
-  activity_level: "sedentary" | "light" | "moderate" | "active" | "very_active";
+  activity_level: "sedentary" | "light" | "moderate" | "active";
 }
 
 /** Enum dell'app → enum del backend (i due dizionari non coincidono). */
@@ -66,7 +66,6 @@ export const ACTIVITY_FROM_API: Record<CreateProfileInput["activity_level"], Act
   light: "light",
   moderate: "moderate",
   active: "high",
-  very_active: "high",
 };
 
 /** `goal` del server → `Goal` dell'app, `null` se il valore è sconosciuto. */

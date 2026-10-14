@@ -10,13 +10,12 @@
  *   other: media dei due risultati
  */
 
-/** Moltiplicatore per livello di attività. */
+/** Moltiplicatore per livello di attività (i quattro che l'app mostra). */
 const ACTIVITY_MULTIPLIER: Record<string, number> = {
   sedentary: 1.2,
   light: 1.375,
   moderate: 1.55,
   active: 1.725,
-  very_active: 1.9,
 };
 
 /** Aggiustamento calorico per obiettivo. */
@@ -35,7 +34,7 @@ export interface TdeeInput {
   weightKg: number;
   /** "lose" | "maintain" | "gain". */
   goal: string;
-  /** "sedentary" | "light" | "moderate" | "active" | "very_active". */
+  /** "sedentary" | "light" | "moderate" | "active". */
   activityLevel: string;
 }
 
