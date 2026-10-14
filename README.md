@@ -455,6 +455,35 @@ con `API_BASE=""` e tutte le chiamate finiscono nei rewrite di `vercel.json`
 `Settings → Environment Variables` e verificare nel bundle che la costante
 `API_BASE` contenga `onrender.com`.
 
+### Icone (iOS, Android, PWA)
+
+L'icona ufficiale è `icon.png` (1024×1024) alla radice. Da quel file unico
+`scripts/generate-app-icons.sh` (ImageMagick) genera tutte le risoluzioni:
+
+```bash
+bash scripts/generate-app-icons.sh                     # usa ./icon.png
+bash scripts/generate-app-icons.sh percorso/nuova.png  # sorgente alternativa
+```
+
+- `assets/images/icon.png` — icona dell'app; è il file usato da `app.json`
+  (`icon` globale e `ios.icon`); `assets/expo.icon` (Icon Composer) non è
+  più usato.
+- `assets/images/logo.png` e `logo-mark.png` — varianti per l'UI: il primo è
+  il quadrato pieno, il secondo solo il marchio con sfondo trasparente.
+  Entrambi sono consumati da `components/Logo.tsx` (login, registrazione,
+  "controlla la tua email", "conferma ricevuta").
+- `assets/images/android-icon-foreground/background/monochrome.png` —
+  adaptive icon Android (marchio nel 58% del canvas per la safe zone) e
+  themed icon per Android 13+.
+- `assets/images/splash-icon.png` — marchio della splash screen.
+- `assets/images/favicon.png` + `public/`: `favicon.png`, `icon-192.png`,
+  `icon-512.png` (purpose `any`), `icon-512-maskable.png` (marchio dentro il
+  cerchio sicuro 80%, purpose `maskable`) e `apple-touch-icon.png`.
+
+Dopo un cambio icona: rilanciare lo script, ricompilare i nativi
+(`expo run:ios` / `expo run:android`) e, per il PWA, rimuovere e reinstallare
+l'icona dalla home.
+
 ### PWA (manifest e icone sulla home)
 
 `app/+html.tsx` è la shell HTML del web: oltre al tema ci mette i tag che
@@ -465,8 +494,10 @@ e le icone del browser) e come icona usava uno screenshot della pagina.
 
 Il manifest è `public/manifest.json` (`display: standalone`, `start_url` e
 `scope` su `/`); `expo export` lo copia nella radice di `dist/` insieme alle
-icone `icon-192.png`, `icon-512.png` e `apple-touch-icon.png`, ricavate da
-`assets/images/icon.png`.
+icone `icon-192.png`, `icon-512.png`, `icon-512-maskable.png` e
+`apple-touch-icon.png` (più `favicon.png`, linkata esplicitamente in
+`+html.tsx`). Il favicon è anche `web.favicon` in `app.json`. Tutti questi
+file sono generati dalla sorgente unica `icon.png` — vedi "Icone" sopra.
 
 iOS memorizza icona e comportamento **al momento in cui si preme "Aggiungi a
 Schermata Home"**: dopo una modifica togliere l'icona e aggiungerla di nuovo,

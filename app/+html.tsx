@@ -51,6 +51,7 @@ export default function Root({ children }: PropsWithChildren) {
           sue icone) e come icona usa uno screenshot della pagina. Il manifest
           sta in public/ e viene copiato nella radice dell'export.
         */}
+        <link rel="icon" type="image/png" href="/favicon.png" />
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />

@@ -2,13 +2,13 @@
   "expo": {
     "name": "Evolvi",
     "slug": "evolvi",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "evolvi",
     "userInterfaceStyle": "dark",
     "ios": {
-      "icon": "./assets/expo.icon",
+      "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.evolvi.app"
     },
     "android": {

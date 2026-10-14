@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Platform, Pressable, Text, View } from "react-nat
 import { Link, router } from "expo-router";
 import { Check, Mail, Lock, User } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
+import { Logo } from "@/components/Logo";
 import { useAuth } from "@/lib/auth";
 import { AuthInput } from "@/components/auth/AuthInput";
 import { PasswordStrengthIndicator } from "@/components/auth/PasswordStrengthIndicator";
@@ -69,9 +70,7 @@ export default function RegisterScreen() {
     <Screen className="justify-center">
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} className="flex-1 justify-center px-6 py-6">
         <View className="mb-8 items-center gap-4">
-          <View className="h-20 w-20 items-center justify-center rounded-3xl bg-primary/15">
-            <User size={36} color="#F97316" strokeWidth={2.2} />
-          </View>
+          <Logo size={80} />
           <Text className="font-inter-bold text-3xl text-foreground">Crea account</Text>
           <Text className="text-center font-sans text-sm text-muted">Unisciti a Evolvi in pochi secondi.</Text>
         </View>

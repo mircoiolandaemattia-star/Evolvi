@@ -1,7 +1,7 @@
 import { Pressable, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { Mail } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
+import { Logo } from "@/components/Logo";
 
 /**
  * Registrazione con conferma email attiva: l'account Supabase esiste ma la
@@ -14,9 +14,7 @@ export default function CheckEmailScreen() {
   return (
     <Screen className="justify-center">
       <View className="flex-1 items-center justify-center gap-6 px-6 py-6">
-        <View className="h-20 w-20 items-center justify-center rounded-3xl bg-primary/15">
-          <Mail size={36} color="#F97316" strokeWidth={2.2} />
-        </View>
+        <Logo size={80} />
 
         <View className="gap-2">
           <Text className="text-center font-inter-bold text-3xl text-foreground">

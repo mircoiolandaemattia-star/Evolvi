@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { router } from "expo-router";
-import { CheckCircle2, Mail } from "lucide-react-native";
+import { CheckCircle2 } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
+import { Logo } from "@/components/Logo";
 import { supabase } from "@/lib/supabase";
 
 type Status = "checking" | "verified" | "no-session";
@@ -68,9 +69,7 @@ export default function EmailVerifiedScreen() {
           </>
         ) : (
           <>
-            <View className="h-20 w-20 items-center justify-center rounded-3xl bg-primary/15">
-              <Mail size={36} color="#F97316" strokeWidth={2.2} />
-            </View>
+            <Logo size={80} />
             <View className="gap-2">
               <Text className="text-center font-inter-bold text-3xl text-foreground">
                 Conferma ricevuta

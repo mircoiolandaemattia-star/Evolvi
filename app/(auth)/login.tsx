@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, Text, View } from "react-native";
 import { Link, router } from "expo-router";
-import { Dumbbell, Mail, Lock } from "lucide-react-native";
+import { Mail, Lock } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
+import { Logo } from "@/components/Logo";
 import { useAuth } from "@/lib/auth";
 import { notify } from "@/lib/feedback";
 import { AuthInput } from "@/components/auth/AuthInput";
@@ -53,9 +54,7 @@ export default function LoginScreen() {
     <Screen className="justify-center">
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} className="flex-1 justify-center px-6">
         <View className="mb-10 items-center gap-4">
-          <View className="h-20 w-20 items-center justify-center rounded-3xl bg-primary/15">
-            <Dumbbell size={36} color="#F97316" strokeWidth={2.2} />
-          </View>
+          <Logo size={88} />
           <Text className="font-inter-bold text-4xl text-foreground">Evolvi</Text>
           <Text className="text-center font-sans text-base text-muted">Monitora allenamenti, dieta e progressi.</Text>
         </View>
