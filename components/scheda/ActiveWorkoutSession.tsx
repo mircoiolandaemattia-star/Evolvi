@@ -8,6 +8,7 @@ import {
   ScrollView,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { router } from "expo-router";
@@ -40,12 +41,17 @@ import {
   markWorkoutCompleted,
   useCreateWorkoutSession,
 } from "@/lib/workoutQueries";
-import { Card } from "@/components/home/Card";
 import { NumberField, PrimaryButton } from "./formControls";
 import { ReplaceExerciseModal } from "./ReplaceExerciseModal";
 
 /** Recupero usato quando la scheda non indica un riposo specifico (secondi). */
 const DEFAULT_REST_SECONDS = 90;
+
+/**
+ * Spazio (px) fra le righe della lista esercizi: coincide con `gap-2`
+ * del contenitore e serve a calcolare la posizione del focus in scroll.
+ */
+const LIST_ROW_GAP = 8;
 
 /**
  * Recupero in secondi di un esercizio: quello impostato nella scheda
@@ -136,6 +142,14 @@ type ActiveWorkoutSessionProps = {
 type Phase = "reading" | "prompt" | "ready";
 
 /**
+ * Metriche della lista esercizi misurate dai layout: `listTop` è la
+ * posizione della lista nel contenuto scrollabile, `collapsed` l'altezza
+ * di una riga chiusa (sono tutte identiche: è il focus a far crescere
+ * una sola). `null` = non ancora misurate.
+ */
+type ListMetrics = { listTop: number | null; collapsed: number | null };
+
+/**
  * Vista allenamento attivo: progresso esercizi, registrazione serie
  * (completata / peso / ripetizioni), timer di recupero, navigazione libera
  * fra gli esercizi, modifica al volo (sostituzione quando il macchinario
@@ -159,6 +173,7 @@ export function ActiveWorkoutSession({ day, autoResume = false }: ActiveWorkoutS
   const [editing, setEditing] = useState(false);
   const [replacing, setReplacing] = useState(false);
   const [finishError, setFinishError] = useState<string | null>(null);
+  const [metrics, setMetrics] = useState<ListMetrics>({ listTop: null, collapsed: null });
 
   /**
    * Inizio sessione (ms da epoch). Parte "adesso" e viene riallineato dal
@@ -168,8 +183,13 @@ export function ActiveWorkoutSession({ day, autoResume = false }: ActiveWorkoutS
   const startedAtRef = useRef(0);
   /** Handler di uscita letto dall'evento hardware (senza dipendenze stale). */
   const exitRef = useRef<() => void>(() => {});
+  /** Lista esercizi: ref dello scroll e del suo offset (non fanno render). */
+  const scrollRef = useRef<ScrollView>(null);
+  const scrollYRef = useRef(0);
 
   const createSession = useCreateWorkoutSession();
+  /** Altezza schermo: serve a capire se il focus è già visibile. */
+  const { height } = useWindowDimensions();
 
   const current = exercises[index];
   const currentLog = logs[index] ?? [];
@@ -364,18 +384,27 @@ export function ActiveWorkoutSession({ day, autoResume = false }: ActiveWorkoutS
     );
   }
 
-  function handleToggleSet(setIndex: number) {
-    const wasCompleted = currentLog[setIndex]?.completed ?? false;
-    updateSet(setIndex, { completed: !wasCompleted });
-    // Completare una serie avvia il recupero impostato per quell'esercizio.
-    if (!wasCompleted && current) {
-      const seconds = restSecondsFor(current);
-      setRest({ seconds });
-      setRestRemaining(seconds);
+  function handleToggleSet(setNumber: number) {
+    const wasCompleted = currentLog[setNumber]?.completed ?? false;
+    updateSet(setNumber, { completed: !wasCompleted });
+    if (wasCompleted || !current) return;
+
+    // Completare una serie avvia il recupero impostato per l'esercizio.
+    const seconds = restSecondsFor(current);
+    setRest({ seconds });
+    setRestRemaining(seconds);
+
+    // Finite tutte le serie: il recupero continua a scorrere e si passa
+    // automaticamente al prossimo esercizio — il cambio di vista non lo
+    // azzera, è una pausa fisica non legata allo schermo.
+    const doneNow = currentLog.filter((set) => set.completed).length + 1;
+    if (doneNow >= currentLog.length && index < exercises.length - 1) {
+      setEditing(false);
+      setIndex(index + 1);
     }
   }
 
-  /** Chiude il recupero (salto manuale o passaggio all'esercizio dopo). */
+  /** Chiude il recupero (solo con il salto manuale o a fine tempo). */
   function endRest() {
     setRest(null);
     setRestRemaining(null);
@@ -395,12 +424,54 @@ export function ActiveWorkoutSession({ day, autoResume = false }: ActiveWorkoutS
 
   /* ---------------------------- Navigazione ------------------------------ */
 
+  /**
+   * Mette a fuoco un esercizio (riga toccata, Precedente/Successivo o
+   * avanzamento automatico). Il recupero in corso non viene toccato: è
+   * pausa fisica, non legata alla vista.
+   */
   function goTo(target: number) {
     if (target < 0 || target >= exercises.length) return;
-    endRest();
     setEditing(false);
     setIndex(target);
   }
+
+  /** Inizio della lista nel contenuto scrollabile (dal suo onLayout). */
+  function noteListTop(y: number) {
+    setMetrics((prev) =>
+      prev.listTop !== null && Math.abs(prev.listTop - y) < 0.5
+        ? prev
+        : { listTop: y, collapsed: prev.collapsed },
+    );
+  }
+
+  /** Altezza di una riga chiusa: sono tutte identiche, basta la prima. */
+  function noteCollapsedHeight(rowHeight: number) {
+    setMetrics((prev) =>
+      prev.collapsed !== null && Math.abs(prev.collapsed - rowHeight) < 0.5
+        ? prev
+        : { listTop: prev.listTop, collapsed: rowHeight },
+    );
+  }
+
+  /**
+   * Mantiene a fuoco l'esercizio in esercuzione quando cambia il focus.
+   * Le righe sopra a lui sono sempre chiuse, quindi la posizione si
+   * calcola: y = inizio lista + indice × (altezza riga + gap). Se l'esercizio
+   * è già visibile nell'alto dello schermo non si muove (niente salti).
+   */
+  useEffect(() => {
+    const { listTop, collapsed } = metrics;
+    if (listTop === null || collapsed === null) return;
+    const y = listTop + index * (collapsed + LIST_ROW_GAP);
+    const visibleTop = scrollYRef.current;
+    const halfVisible = Math.round((height - 140) / 2);
+    if (y >= visibleTop + 16 && y <= visibleTop + halfVisible) return;
+    const target = Math.max(0, y - 96);
+    const timer = setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: target, animated: true });
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [index, metrics, height]);
 
   /* ------------------------------- Chiusura ------------------------------ */
 
@@ -537,9 +608,14 @@ export function ActiveWorkoutSession({ day, autoResume = false }: ActiveWorkoutS
       className="flex-1 bg-background"
     >
       <ScrollView
+        ref={scrollRef}
         className="flex-1"
         keyboardShouldPersistTaps="handled"
         contentContainerClassName="gap-5 px-4 pb-8 pt-6"
+        onScroll={(event) => {
+          scrollYRef.current = event.nativeEvent.contentOffset.y;
+        }}
+        scrollEventThrottle={50}
       >
         {/* Header */}
         <View className="flex-row items-center gap-4">
@@ -588,186 +664,205 @@ export function ActiveWorkoutSession({ day, autoResume = false }: ActiveWorkoutS
           </View>
         ) : null}
 
-        {/* Timer di recupero */}
-        {restRemaining !== null ? (
-          <Card className="flex-row items-center gap-4 p-4">
-            <View className="h-11 w-11 items-center justify-center rounded-xl bg-primary/15">
-              <Timer size={22} color="#F97316" strokeWidth={2.2} />
-            </View>
-            <View className="flex-1">
-              <Text className="font-sans text-xs text-muted">
-                {isRestDone ? "Recupero terminato" : "Recupero tra le serie"}
-              </Text>
-              <Text className="font-inter-bold text-2xl tabular-nums text-foreground">
-                {isRestDone ? "Pronto!" : formatClock(restRemaining)}
-              </Text>
-            </View>
-            {!isRestDone ? (
-              <Pressable
-                onPress={endRest}
-                accessibilityRole="button"
-                accessibilityLabel="Salta il recupero"
-                className="flex-row cursor-pointer items-center gap-1.5 rounded-xl border border-border bg-background/60 px-3.5 py-2.5 active:opacity-80"
-              >
-                <SkipForward size={16} color="#94A3B8" strokeWidth={2.2} />
-                <Text className="font-inter-semibold text-sm text-muted">Salta</Text>
-              </Pressable>
-            ) : null}
-          </Card>
-        ) : null}
-
-        {/* Esercizio corrente */}
-        <Card className="p-4">
-          <View className="flex-row items-start gap-3">
-            <View className="h-11 w-11 items-center justify-center rounded-xl bg-accent/15">
-              <Text className="font-inter-bold text-sm text-accent">{index + 1}</Text>
-            </View>
-            <View className="flex-1">
-              <Text className="font-inter-bold text-lg leading-6 text-foreground">
-                {current.name}
-              </Text>
-              <View className="mt-1 flex-row items-center flex-wrap gap-1.5">
-                <Text className="font-sans text-xs text-muted">
-                  {current.sets} serie programmate ·{" "}
-                  {current.weightKg > 0 ? `${current.weightKg} kg` : "peso libero"}
-                  {current.restSeconds ? ` · riposo ${current.restSeconds} s` : ""}
-                </Text>
-                <View className="rounded-full bg-background/60 px-2.5 py-0.5">
-                  <Text className="font-inter-semibold text-xs text-foreground">
-                    {completedInCurrent}/{currentLog.length} serie
+        {/* Lista esercizi: si vedono sempre tutti, il focus resta su quello
+            in esercuzione (serie, peso, rep e recupero sul pannello attivo) */}
+        <View className="gap-2" onLayout={(event) => noteListTop(event.nativeEvent.layout.y)}>
+          {exercises.map((exercise, exerciseIndex) => {
+            if (exerciseIndex !== index) {
+              // Prima e dopo il focus: solo il nome, un tap lo mette a fuoco.
+              return (
+                <Pressable
+                  key={exercise.id}
+                  onPress={() => goTo(exerciseIndex)}
+                  onLayout={(event) => noteCollapsedHeight(event.nativeEvent.layout.height)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Metti a fuoco ${exercise.name}`}
+                  className="cursor-pointer items-center rounded-xl border border-border bg-surface px-4 py-3.5 active:opacity-80"
+                >
+                  <Text className="font-inter-semibold text-sm text-muted" numberOfLines={1}>
+                    {exercise.name}
                   </Text>
+                </Pressable>
+              );
+            }
+
+            return (
+              <View
+                key={exercise.id}
+                className="rounded-2xl border-2 border-primary bg-surface p-4"
+              >
+                <View className="flex-row items-start gap-3">
+                  <View className="h-11 w-11 items-center justify-center rounded-xl bg-accent/15">
+                    <Text className="font-inter-bold text-sm text-accent">{index + 1}</Text>
+                  </View>
+                  <View className="flex-1">
+                    <Text className="font-inter-bold text-lg leading-6 text-foreground">
+                      {current.name}
+                    </Text>
+                    <View className="mt-1 flex-row items-center flex-wrap gap-1.5">
+                      <Text className="font-sans text-xs text-muted">
+                        {current.sets} serie programmate ·{" "}
+                        {current.weightKg > 0 ? `${current.weightKg} kg` : "peso libero"}
+                        {current.restSeconds ? ` · riposo ${current.restSeconds} s` : ""}
+                      </Text>
+                      <View className="rounded-full bg-background/60 px-2.5 py-0.5">
+                        <Text className="font-inter-semibold text-xs text-foreground">
+                          {completedInCurrent}/{currentLog.length} serie
+                        </Text>
+                      </View>
+                      {current.edited ? (
+                        <View className="rounded-full bg-primary/15 px-2.5 py-0.5">
+                          <Text className="font-inter-semibold text-xs text-primary">Modificato</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  </View>
+                  <Pressable
+                    onPress={() => setEditing((value) => !value)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: editing }}
+                    accessibilityLabel={`Modifica ${current.name} per questa sessione`}
+                    className="h-11 w-11 cursor-pointer items-center justify-center rounded-lg bg-background/60 active:opacity-80"
+                  >
+                    <PenLine size={18} color="#F97316" strokeWidth={2.2} />
+                  </Pressable>
                 </View>
-                {current.edited ? (
-                  <View className="rounded-full bg-primary/15 px-2.5 py-0.5">
-                    <Text className="font-inter-semibold text-xs text-primary">Modificato</Text>
+
+                {/* Recupero sul pannello del focus: non si azzera cambiando esercizio */}
+                {restRemaining !== null ? (
+                  <View className="mt-3 flex-row items-center gap-3 rounded-xl border border-primary/40 bg-primary/10 px-3 py-3">
+                    <View className="h-10 w-10 items-center justify-center rounded-lg bg-primary/15">
+                      <Timer size={20} color="#F97316" strokeWidth={2.2} />
+                    </View>
+                    <View className="flex-1">
+                      <Text className="font-sans text-xs text-muted">
+                        {isRestDone ? "Recupero terminato" : "Recupero tra le serie"}
+                      </Text>
+                      <Text className="font-inter-bold text-2xl tabular-nums text-foreground">
+                        {isRestDone ? "Pronto!" : formatClock(restRemaining)}
+                      </Text>
+                    </View>
+                    {!isRestDone ? (
+                      <Pressable
+                        onPress={endRest}
+                        accessibilityRole="button"
+                        accessibilityLabel="Salta il recupero"
+                        className="flex-row cursor-pointer items-center gap-1.5 rounded-xl border border-border bg-background/60 px-3.5 py-2.5 active:opacity-80"
+                      >
+                        <SkipForward size={16} color="#94A3B8" strokeWidth={2.2} />
+                        <Text className="font-inter-semibold text-sm text-muted">Salta</Text>
+                      </Pressable>
+                    ) : null}
                   </View>
                 ) : null}
-              </View>
-            </View>
-            <Pressable
-              onPress={() => setEditing((value) => !value)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: editing }}
-              accessibilityLabel={`Modifica ${current.name} per questa sessione`}
-              className="h-11 w-11 cursor-pointer items-center justify-center rounded-lg bg-background/60 active:opacity-80"
-            >
-              <PenLine size={18} color="#F97316" strokeWidth={2.2} />
-            </Pressable>
-          </View>
 
-          {/* Modifica al volo: solo questa sessione, la scheda non cambia */}
-          {editing ? (
-            <ExerciseEditPanel
-              key={current.id}
-              exercise={current}
-              onPatch={patchCurrentExercise}
-              onReplace={() => setReplacing(true)}
-              onClose={() => setEditing(false)}
-            />
-          ) : null}
+                {/* Modifica al volo: solo questa sessione, la scheda non cambia */}
+                {editing ? (
+                  <ExerciseEditPanel
+                    key={current.id}
+                    exercise={current}
+                    onPatch={patchCurrentExercise}
+                    onReplace={() => setReplacing(true)}
+                    onClose={() => setEditing(false)}
+                  />
+                ) : null}
 
-          {/* Serie */}
-          <View className="mt-4 gap-2">
-            {currentLog.map((set, setIndex) => {
-              const isSetDone = set.completed;
-              return (
-                <View
-                  key={`${current.id}-set-${setIndex}`}
-                  className={`rounded-xl border p-3 ${
-                    isSetDone
-                      ? "border-accent/40 bg-accent/10"
-                      : "border-border bg-background/40"
-                  }`}
-                >
-                  <View className="flex-row items-center gap-3">
-                    {/* Checkbox completa serie */}
-                    <Pressable
-                      onPress={() => handleToggleSet(setIndex)}
-                      accessibilityRole="checkbox"
-                      accessibilityLabel={`Serie ${setIndex + 1} completata`}
-                      accessibilityState={{ checked: isSetDone }}
-                      className={`h-11 w-11 cursor-pointer items-center justify-center rounded-full border-2 ${
-                        isSetDone ? "border-accent bg-accent" : "border-border bg-surface"
-                      }`}
-                    >
-                      {isSetDone ? (
-                        <Check size={20} color="#0F172A" strokeWidth={3} />
-                      ) : null}
-                    </Pressable>
+                {/* Serie */}
+                <View className="mt-4 gap-2">
+                  {currentLog.map((set, setIndex) => {
+                    const isSetDone = set.completed;
+                    return (
+                      <View
+                        key={`${current.id}-set-${setIndex}`}
+                        className={`rounded-xl border p-3 ${
+                          isSetDone
+                            ? "border-accent/40 bg-accent/10"
+                            : "border-border bg-background/40"
+                        }`}
+                      >
+                        <View className="flex-row items-center gap-3">
+                          {/* Checkbox completa serie */}
+                          <Pressable
+                            onPress={() => handleToggleSet(setIndex)}
+                            accessibilityRole="checkbox"
+                            accessibilityLabel={`Serie ${setIndex + 1} completata`}
+                            accessibilityState={{ checked: isSetDone }}
+                            className={`h-11 w-11 cursor-pointer items-center justify-center rounded-full border-2 ${
+                              isSetDone ? "border-accent bg-accent" : "border-border bg-surface"
+                            }`}
+                          >
+                            {isSetDone ? (
+                              <Check size={20} color="#0F172A" strokeWidth={3} />
+                            ) : null}
+                          </Pressable>
 
-                    <Text className="w-14 font-inter-semibold text-sm text-muted">
-                      Serie {setIndex + 1}
-                    </Text>
+                          <Text className="w-14 font-inter-semibold text-sm text-muted">
+                            Serie {setIndex + 1}
+                          </Text>
 
-                    {/* Peso */}
-                    <View className="flex-1">
-                      <Text className="mb-1 font-sans text-xs text-muted">Peso (kg)</Text>
-                      <TextInput
-                        value={set.weight}
-                        onChangeText={(text) => updateSet(setIndex, { weight: text })}
-                        keyboardType={Platform.OS === "ios" ? "decimal-pad" : "numeric"}
-                        accessibilityLabel={`Peso serie ${setIndex + 1} in chilogrammi`}
-                        placeholder={current.weightKg > 0 ? String(current.weightKg) : "0"}
-                        placeholderTextColor="#64748B"
-                        className="rounded-lg border border-border bg-surface px-3 py-2 text-center font-sans text-foreground"
-                      />
-                    </View>
+                          {/* Peso */}
+                          <View className="flex-1">
+                            <Text className="mb-1 font-sans text-xs text-muted">Peso (kg)</Text>
+                            <TextInput
+                              value={set.weight}
+                              onChangeText={(text) => updateSet(setIndex, { weight: text })}
+                              keyboardType={Platform.OS === "ios" ? "decimal-pad" : "numeric"}
+                              accessibilityLabel={`Peso serie ${setIndex + 1} in chilogrammi`}
+                              placeholder={current.weightKg > 0 ? String(current.weightKg) : "0"}
+                              placeholderTextColor="#64748B"
+                              className="rounded-lg border border-border bg-surface px-3 py-2 text-center font-sans text-foreground"
+                            />
+                          </View>
 
-                    {/* Ripetizioni effettive */}
-                    <View className="flex-1">
-                      <Text className="mb-1 font-sans text-xs text-muted">Rep</Text>
-                      <TextInput
-                        value={set.reps}
-                        onChangeText={(text) => updateSet(setIndex, { reps: text })}
-                        keyboardType="number-pad"
-                        accessibilityLabel={`Ripetizioni effettive serie ${setIndex + 1}`}
-                        placeholder={String(current.reps)}
-                        placeholderTextColor="#64748B"
-                        className="rounded-lg border border-border bg-surface px-3 py-2 text-center font-sans text-foreground"
-                      />
-                    </View>
-                  </View>
+                          {/* Ripetizioni effettive */}
+                          <View className="flex-1">
+                            <Text className="mb-1 font-sans text-xs text-muted">Rep</Text>
+                            <TextInput
+                              value={set.reps}
+                              onChangeText={(text) => updateSet(setIndex, { reps: text })}
+                              keyboardType="number-pad"
+                              accessibilityLabel={`Ripetizioni effettive serie ${setIndex + 1}`}
+                              placeholder={String(current.reps)}
+                              placeholderTextColor="#64748B"
+                              className="rounded-lg border border-border bg-surface px-3 py-2 text-center font-sans text-foreground"
+                            />
+                          </View>
+                        </View>
+                      </View>
+                    );
+                  })}
                 </View>
-              );
-            })}
-          </View>
-        </Card>
+              </View>
+            );
+          })}
+        </View>
 
         {/* Navigazione libera fra gli esercizi */}
-        <View className="items-center gap-2">
-          <View className="flex-row items-center gap-2">
-            <Pressable
-              onPress={() => goTo(index - 1)}
-              disabled={index === 0}
-              accessibilityRole="button"
-              accessibilityLabel="Esercizio precedente"
-              className={`flex-1 flex-row cursor-pointer items-center justify-center gap-1 rounded-xl border border-border bg-background/60 py-3.5 ${
-                index === 0 ? "opacity-40" : "active:opacity-80"
-              }`}
-            >
-              <ChevronLeft size={18} color="#94A3B8" strokeWidth={2.2} />
-              <Text className="font-inter-semibold text-sm text-muted">Precedente</Text>
-            </Pressable>
-            <Text className="w-14 text-center font-inter-semibold text-sm text-foreground">
-              {index + 1}/{exercises.length}
-            </Text>
-            <Pressable
-              onPress={() => goTo(index + 1)}
-              disabled={index === exercises.length - 1}
-              accessibilityRole="button"
-              accessibilityLabel="Esercizio successivo"
-              className={`flex-1 flex-row cursor-pointer items-center justify-center gap-1 rounded-xl border border-border bg-background/60 py-3.5 ${
-                index === exercises.length - 1 ? "opacity-40" : "active:opacity-80"
-              }`}
-            >
-              <Text className="font-inter-semibold text-sm text-muted">Successivo</Text>
-              <ChevronRight size={18} color="#94A3B8" strokeWidth={2.2} />
-            </Pressable>
-          </View>
-          <Text className="font-sans text-xs text-muted">
-            Puoi scorrere gli esercizi in qualsiasi ordine: il recupero si azzera passando
-            oltre.
-          </Text>
+        <View className="flex-row items-center gap-2">
+          <Pressable
+            onPress={() => goTo(index - 1)}
+            disabled={index === 0}
+            accessibilityRole="button"
+            accessibilityLabel="Esercizio precedente"
+            className={`flex-1 flex-row cursor-pointer items-center justify-center gap-1 rounded-xl border border-border bg-background/60 py-3.5 ${
+              index === 0 ? "opacity-40" : "active:opacity-80"
+            }`}
+          >
+            <ChevronLeft size={18} color="#94A3B8" strokeWidth={2.2} />
+            <Text className="font-inter-semibold text-sm text-muted">Precedente</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => goTo(index + 1)}
+            disabled={index === exercises.length - 1}
+            accessibilityRole="button"
+            accessibilityLabel="Esercizio successivo"
+            className={`flex-1 flex-row cursor-pointer items-center justify-center gap-1 rounded-xl border border-border bg-background/60 py-3.5 ${
+              index === exercises.length - 1 ? "opacity-40" : "active:opacity-80"
+            }`}
+          >
+            <Text className="font-inter-semibold text-sm text-muted">Successivo</Text>
+            <ChevronRight size={18} color="#94A3B8" strokeWidth={2.2} />
+          </Pressable>
         </View>
 
         {/* Termina: sempre visibile in fondo, attivo con almeno una serie */}
