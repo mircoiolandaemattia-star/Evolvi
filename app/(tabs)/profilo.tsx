@@ -15,6 +15,7 @@ import { Card } from "@/components/home/Card";
 import { PersonalDataCard, type PersonalData } from "@/components/profilo/PersonalDataCard";
 import { GoalSelector } from "@/components/profilo/GoalSelector";
 import { ActivityLevelSelector } from "@/components/profilo/ActivityLevelSelector";
+import { TdeeCard } from "@/components/profilo/TdeeCard";
 import { SettingsCard } from "@/components/profilo/SettingsCard";
 import { ReminderCard } from "@/components/profilo/ReminderCard";
 import { AddReminderModal } from "@/components/profilo/AddReminderModal";
@@ -32,7 +33,7 @@ import {
   saveNotificationsEnabled,
   syncReminderNotifications,
 } from "@/lib/notifications";
-import { birthDateFromAge , useProfile, useUpdateProfile } from "@/lib/profileQueries";
+import { birthDateFromParts, birthDateParts, parseStoredBirthDate, toIsoDate, useProfile, useUpdateProfile } from "@/lib/profileQueries";
 import {
   useReminders,
   useCreateReminder,
@@ -147,9 +148,12 @@ export default function ProfiloScreen() {
     const patch: Partial<CreateProfileInput> = {
       name: data.name.trim() || user?.name,
     };
-    if (data.age) patch.birth_date = birthDateFromAge(parseInt(data.age, 10));
     if (data.weightKg) patch.weight_kg = parseFloat(data.weightKg.replace(",", "."));
     if (data.heightCm) patch.height_cm = parseInt(data.heightCm, 10);
+    // La card blocca il salvataggio su una data imperfetta, ma il `if`
+    // qui sotto è l'ultimo filtro: niente 1° gennaio d'ufficio.
+    const birthDate = birthDateFromParts(data.birthDay, data.birthMonth, data.birthYear);
+    if (birthDate) patch.birth_date = toIsoDate(birthDate);
     if (data.gender && ["male", "female", "other"].includes(data.gender.trim())) {
       patch.gender = data.gender.trim() as "male" | "female" | "other";
     }
@@ -290,39 +294,36 @@ export default function ProfiloScreen() {
   );
 
   // Personali: se c'è profilo server, usa i suoi dati per età/peso/altezza/sesso
-  const personalData: PersonalData = useMemo(() => ({
-    name: user?.name ?? "",
-    age: profile?.birth_date
-      ? String(new Date().getFullYear() - new Date(profile.birth_date).getFullYear())
-      : "",
-    weightKg: profile?.weight_kg != null ? String(profile.weight_kg) : "",
-    heightCm: profile?.height_cm != null ? String(profile.height_cm) : "",
-    gender: profile?.gender ?? "",
-  }), [profile, user]);
+  const personalData: PersonalData = useMemo(() => {
+    // Parti UTC: `birth_date` sta a mezzanotte UTC e un fuso positivo
+    // sposterebbe il compleanno sul giorno prima.
+    const birth = birthDateParts(parseStoredBirthDate(profile?.birth_date));
+    return {
+      name: user?.name ?? "",
+      birthDay: birth.day,
+      birthMonth: birth.month,
+      birthYear: birth.year,
+      weightKg: profile?.weight_kg != null ? String(profile.weight_kg) : "",
+      heightCm: profile?.height_cm != null ? String(profile.height_cm) : "",
+      gender: profile?.gender ?? "",
+    };
+  }, [profile, user]);
 
   const leftColumn = (
     <View className="gap-4">
       <PersonalDataCard data={personalData} readOnly={isReadOnly} onSave={handlePersonalSave} />
-      <GoalSelector
-        value={serverGoal}
-        weightKg={profile?.weight_kg ?? null}
-        heightCm={profile?.height_cm ?? null}
-        age={profile?.birth_date ? new Date().getFullYear() - new Date(profile.birth_date).getFullYear() : null}
+      {/* Sopra entrambi i selettori: è il numero che l'utente va a cercare
+          per confrontarlo con la Home. Prima era dentro ciascuno dei due. */}
+      <TdeeCard
+        birthDate={profile?.birth_date ?? null}
         gender={profile?.gender ?? null}
-        activityLevel={serverActivity}
-        readOnly={isReadOnly}
-        onChange={handleGoalChange}
-      />
-      <ActivityLevelSelector
-        value={serverActivity}
-        goal={serverGoal}
-        weightKg={profile?.weight_kg ?? null}
         heightCm={profile?.height_cm ?? null}
-        age={profile?.birth_date ? new Date().getFullYear() - new Date(profile.birth_date).getFullYear() : null}
-        gender={profile?.gender ?? null}
-        readOnly={isReadOnly}
-        onChange={handleActivityChange}
+        weightKg={profile?.weight_kg ?? null}
+        goal={profile?.goal ?? "maintain"}
+        activityLevel={profile?.activity_level ?? "sedentary"}
       />
+      <GoalSelector value={serverGoal} readOnly={isReadOnly} onChange={handleGoalChange} />
+      <ActivityLevelSelector value={serverActivity} readOnly={isReadOnly} onChange={handleActivityChange} />
     </View>
   );
 

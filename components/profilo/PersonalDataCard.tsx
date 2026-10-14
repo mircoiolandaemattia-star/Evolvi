@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import { Card } from "@/components/home/Card";
+import { birthDateFromParts } from "@/lib/profileQueries";
 
 export type PersonalData = {
   name: string;
-  age: string;
+  birthDay: string;
+  birthMonth: string;
+  birthYear: string;
   weightKg: string;
   heightCm: string;
   gender: string;
@@ -30,13 +33,24 @@ function formatGender(g: string): string {
 function formatValue(key: keyof PersonalData, value: string): string {
   const v = value?.trim();
   if (!v) return "—";
-  if (key === "age") return `${v} anni`;
   if (key === "weightKg") return `${v} kg`;
   if (key === "heightCm") return `${v} cm`;
   if (key === "gender") return formatGender(v);
   return v;
 }
 
+function formatBirthDate(d: PersonalData): string {
+  const date = birthDateFromParts(d.birthDay, d.birthMonth, d.birthYear);
+  if (!date) return "—";
+  return `${d.birthDay}/${d.birthMonth}/${d.birthYear}`;
+}
+
+/**
+ * Raccoglie la data di nascita, non l'età: il backend deriva l'età dai
+ * giorni precisi, mentre dall'età si ricavava un 1° gennaio e chi nasce a
+ * dicembre restava un anno in più per quasi tutta l'annata.
+ * Allineata al form di onboarding, che usa gli stessi tre campi.
+ */
 export function PersonalDataCard({ data, readOnly = false, onSave }: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<PersonalData>(data);
@@ -50,8 +64,15 @@ export function PersonalDataCard({ data, readOnly = false, onSave }: Props) {
     setDraft(data);
   }
 
+  const birthDateValid = Boolean(
+    birthDateFromParts(draft.birthDay, draft.birthMonth, draft.birthYear),
+  );
+
   function handleToggle() {
     if (editing) {
+      // Data incompleta o impossibile (31/02): si resta in modifica, con
+      // l'avviso sotto, invece di salvare un birthday inventato dal parser.
+      if (!birthDateValid) return;
       onSave(draft);
       setEditing(false);
     } else {
@@ -88,24 +109,46 @@ export function PersonalDataCard({ data, readOnly = false, onSave }: Props) {
           )}
         </View>
 
-        {/* Età */}
-        <View className="flex-row items-center gap-3 rounded-xl border border-border bg-background/40 px-3 py-3">
-          <Text className="w-28 font-sans text-sm text-muted">Età</Text>
-          {editing ? (
-            <View className="flex-1 flex-row items-center gap-2">
-              <TextInput
-                value={draft.age}
-                onChangeText={(t) => setDraft((p) => ({ ...p, age: t.replace(/[^0-9]/g, "") }))}
-                placeholder="28"
-                placeholderTextColor="#64748B"
-                keyboardType="number-pad"
-                className="flex-1 font-sans text-sm text-foreground"
-              />
-              <Text className="font-sans text-sm text-muted">anni</Text>
-            </View>
-          ) : (
-            <Text className="flex-1 font-inter-semibold text-sm text-foreground">{formatValue("age", data.age)}</Text>
-          )}
+        {/* Nascita */}
+        <View className="gap-1.5">
+          <View className="flex-row items-center gap-3 rounded-xl border border-border bg-background/40 px-3 py-3">
+            <Text className="w-28 font-sans text-sm text-muted">Nascita</Text>
+            {editing ? (
+              <View className="flex-1 flex-row items-center gap-1.5">
+                <TextInput
+                  value={draft.birthDay}
+                  onChangeText={(t) => setDraft((p) => ({ ...p, birthDay: t.replace(/[^0-9]/g, "").slice(0, 2) }))}
+                  placeholder="GG"
+                  placeholderTextColor="#64748B"
+                  keyboardType="number-pad"
+                  className="w-12 font-sans text-sm text-foreground"
+                />
+                <TextInput
+                  value={draft.birthMonth}
+                  onChangeText={(t) => setDraft((p) => ({ ...p, birthMonth: t.replace(/[^0-9]/g, "").slice(0, 2) }))}
+                  placeholder="MM"
+                  placeholderTextColor="#64748B"
+                  keyboardType="number-pad"
+                  className="w-12 font-sans text-sm text-foreground"
+                />
+                <TextInput
+                  value={draft.birthYear}
+                  onChangeText={(t) => setDraft((p) => ({ ...p, birthYear: t.replace(/[^0-9]/g, "").slice(0, 4) }))}
+                  placeholder="AAAA"
+                  placeholderTextColor="#64748B"
+                  keyboardType="number-pad"
+                  className="flex-1 font-sans text-sm text-foreground"
+                />
+              </View>
+            ) : (
+              <Text className="flex-1 font-inter-semibold text-sm text-foreground">{formatBirthDate(data)}</Text>
+            )}
+          </View>
+          {editing && !birthDateValid ? (
+            <Text className="px-1 font-sans text-xs text-destructive">
+              Giorno, mese e anno non formano una data valida.
+            </Text>
+          ) : null}
         </View>
 
         {/* Peso */}

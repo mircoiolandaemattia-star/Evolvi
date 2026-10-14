@@ -7,7 +7,8 @@ import { isApiError } from "@/lib/api";
 import {
   ACTIVITY_TO_API,
   GOAL_TO_API,
-  birthDateFromAge,
+  birthDateFromParts,
+  toIsoDate,
   useCreateProfile,
 } from "@/lib/profileQueries";
 import { OnboardingProgressBar } from "@/components/onboarding/OnboardingProgressBar";
@@ -16,7 +17,8 @@ import { GoalStep } from "@/components/onboarding/GoalStep";
 import { ActivityStep } from "@/components/onboarding/ActivityStep";
 import { DisclaimerStep } from "@/components/onboarding/DisclaimerStep";
 import { SummaryStep } from "@/components/onboarding/SummaryStep";
-import { calculateTDEE, type ActivityLevel, type Goal, type Gender } from "@/lib/calorieCalculator";
+import { type ActivityLevel, type Goal, type Gender } from "@/lib/calorieCalculator";
+import { ageFromBirthDate, computeTargets } from "@/src/api/lib/tdee";
 
 const TOTAL = 5;
 
@@ -27,7 +29,10 @@ export default function OnboardingScreen() {
 
   const [personal, setPersonal] = useState<PersonalData>({
     name: user?.name ?? "",
-    age: user?.age ? String(user.age) : "",
+    // L'età locale non basta a ricostruire la data: si riparte da vuoto.
+    birthDay: "",
+    birthMonth: "",
+    birthYear: "",
     gender: (user?.gender as PersonalData["gender"]) ?? "",
     weight: user?.weightKg ? String(user.weightKg) : "",
     height: user?.heightCm ? String(user.heightCm) : "",
@@ -49,8 +54,8 @@ export default function OnboardingScreen() {
   const tdeeData = useMemo(() => {
     const w = parseFloat(personal.weight.replace(",", "."));
     const h = parseInt(personal.height, 10);
-    const a = parseInt(personal.age, 10);
-    return { w, h, a };
+    const birthDate = birthDateFromParts(personal.birthDay, personal.birthMonth, personal.birthYear);
+    return { w, h, birthDate };
   }, [personal]);
 
   async function handleFinish() {
@@ -58,22 +63,35 @@ export default function OnboardingScreen() {
     if (!goal || !activity) return;
     setSaveError(null);
 
-    const { a, w, h } = tdeeData;
-    // Età sensata: il backend accetta qualsiasi passato, ma 500 anni non lo è.
-    if (!(a >= 1 && a <= 120)) {
-      setSaveError("Inserisci un'età compresa tra 1 e 120 anni.");
+    const { birthDate, w, h } = tdeeData;
+    if (!birthDate) {
+      setSaveError("Controlla la data di nascita: giorno, mese e anno.");
+      return;
+    }
+    // Il backend accetta qualsiasi passato, ma 500 anni non lo è.
+    const age = ageFromBirthDate(birthDate);
+    if (!(age >= 1 && age <= 120)) {
+      setSaveError("La data di nascita deve indicare un'età tra 1 e 120 anni.");
       return;
     }
 
     setSaving(true);
-    const tdee = calculateTDEE(w, h, a, personal.gender as Gender, activity, goal);
+    // Stessa funzione del server: ciò che si vede nel riepilogo è ciò che
+    // verrà salvato, senza un secondo calcolo in disparte.
+    const targets = computeTargets({
+      birthDate,
+      gender: personal.gender,
+      heightCm: h,
+      weightKg: w,
+      goal: GOAL_TO_API[goal],
+      activityLevel: ACTIVITY_TO_API[activity],
+    });
     try {
       // 1) Riga profilo sul server: da qui in poi GET /users/me risponde 200
       //    e il guard di navigazione non manda più all'onboarding.
       await createProfile.mutateAsync({
         name: personal.name.trim() || user?.name || "Utente",
-        // L'UI raccoglie l'età: il backend vuole birth_date (vedi profiloQueries).
-        birth_date: birthDateFromAge(a),
+        birth_date: toIsoDate(birthDate),
         gender: personal.gender as Gender,
         height_cm: h,
         weight_kg: w,
@@ -96,13 +114,13 @@ export default function OnboardingScreen() {
     // 2) Profilo locale: campi usati dalle schermate ancora a mock.
     await updateUser({
       name: personal.name.trim() || user?.name || "Utente",
-      age: a || null,
+      age,
       gender: personal.gender || null,
       weightKg: w || null,
       heightCm: h || null,
       goal: goal || null,
       activityLevel: activity || null,
-      dailyCalories: tdee,
+      dailyCalories: targets.daily_calorie_target,
       acceptedDisclaimer: true,
     });
     router.replace("/(tabs)/home");
@@ -119,11 +137,11 @@ export default function OnboardingScreen() {
           {step === 2 ? <GoalStep value={goal} onChange={setGoal} /> : null}
           {step === 3 ? <ActivityStep value={activity} onChange={setActivity} /> : null}
           {step === 4 ? <DisclaimerStep accepted={accepted} onToggle={setAccepted} /> : null}
-          {step === 5 ? (
+          {step === 5 && tdeeData.birthDate ? (
             <SummaryStep
               weight={tdeeData.w}
               height={tdeeData.h}
-              age={tdeeData.a}
+              birthDate={tdeeData.birthDate}
               gender={personal.gender}
               activity={activity}
               goal={goal}

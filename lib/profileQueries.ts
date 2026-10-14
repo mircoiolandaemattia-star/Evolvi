@@ -90,6 +90,63 @@ export function birthDateFromAge(age: number): string {
   return `${new Date().getFullYear() - age}-01-01`;
 }
 
+/**
+ * Data → "YYYY-MM-DD" a mezzanotte UTC, il formato che il backend si
+ * aspetta per `birth_date`.
+ */
+export function toIsoDate(date: Date): string {
+  const p = birthDateParts(date);
+  return `${p.year}-${p.month}-${p.day}`;
+}
+
+/**
+ * Data → i tre campi del form di nascita. Pezzi UTC, come la memorizza il
+ * backend, e tutti vuoti se la data manca.
+ */
+export function birthDateParts(date: Date | null): { day: string; month: string; year: string } {
+  if (!date) return { day: "", month: "", year: "" };
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return { day: pad(date.getUTCDate()), month: pad(date.getUTCMonth() + 1), year: String(date.getUTCFullYear()) };
+}
+
+/**
+ * Data di nascita dai tre campi dell'onboarding. Ritorna `null` se i numeri
+ * non formano una data reale: 31/02 va scartato (il costruttore `Date`
+ * lo normalizzerebbe in 03/03 senza dirlo a nessuno), come un futuro.
+ * A mezzanotte UTC, come la memorizza il backend.
+ */
+export function birthDateFromParts(day: string, month: string, year: string): Date | null {
+  const d = Number(day);
+  const m = Number(month);
+  const y = Number(year);
+  if (!Number.isInteger(d) || !Number.isInteger(m) || !Number.isInteger(y)) return null;
+  if (y < 1900 || m < 1 || m > 12 || d < 1 || d > 31) return null;
+
+  const date = new Date(Date.UTC(y, m - 1, d));
+  if (date.getUTCFullYear() !== y || date.getUTCMonth() !== m - 1 || date.getUTCDate() !== d) {
+    return null;
+  }
+
+  // "Oggi" è la data locale (quella che l'utente vede): niente nascite future.
+  const now = new Date();
+  if (date.getTime() > Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())) return null;
+  return date;
+}
+
+/**
+ * `birth_date` arriva come "2009-03-14", "2009-03-14 00:00:00" oppure ISO
+ * con la Z: si legge solo la parte di data e si assume mezzanotte UTC.
+ * `new Date()` puro interpreterebbe l'orario come ora locale e a fusi
+ * positivi sposterebbe il compleanno di un giorno — l'età, e quindi il
+ * fabbisogno, ne risentirebbero.
+ */
+export function parseStoredBirthDate(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (!match) return null;
+  return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+}
+
 export const profileKeys = {
   /** Una riga per utente: una sola chiave, invalidata al login/onboarding. */
   me: ["profile", "me"] as const,
