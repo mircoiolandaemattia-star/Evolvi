@@ -18,11 +18,25 @@ jobs:
       - name: Risveglia il backend
         run: |
           url="https://evolvi.onrender.com/api/food-items/lookup?barcode=0000000000000"
+
+          # 401 = servizio sveglio (richiesta senza token respinta dall'auth),
+          # 200 = servizio sveglio e cache del codice a barre.
+          # 502 = l'istanza si sta ancora riavviando: il ping ha svegliato il
+          # servizio ma il proxy di Render risponde prima che la app sia
+          # pronta, quindi è atteso e non va segnalato come guasto.
+          ok() { [ "$1" = "401" ] || [ "$1" = "200" ]; }
+
           code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 90 "$url" || echo "000")
           echo "HTTP ${code}"
-          # 401 = servizio svegio (richiesta senza token respinta dall'auth),
-          # 200 = servizio svegio e cache del codice a barre.
-          if [ "${code}" != "401" ] && [ "${code}" != "200" ]; then
+
+          if ! ok "${code}"; then
+            echo "Non è ancora pronto: riprovo tra 30 secondi"
+            sleep 30
+            code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 90 "$url" || echo "000")
+            echo "HTTP ${code} al secondo tentativo"
+          fi
+
+          if ! ok "${code}"; then
             echo "Il backend non ha risposto come previsto"
             exit 1
           fi
