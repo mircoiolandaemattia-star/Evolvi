@@ -293,7 +293,7 @@ export default function ProfiloScreen() {
     </View>
   );
 
-  // Personali: se c'è profilo server, usa i suoi dati per età/peso/altezza/sesso
+  // Personali: se c'è profilo server, usa i suoi dati per nascita/peso/altezza/sesso
   const personalData: PersonalData = useMemo(() => {
     // Parti UTC: `birth_date` sta a mezzanotte UTC e un fuso positivo
     // sposterebbe il compleanno sul giorno prima.
