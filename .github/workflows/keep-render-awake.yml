@@ -17,7 +17,7 @@ jobs:
     steps:
       - name: Risveglia il backend
         run: |
-          url="https://fittrack-1-goh7.onrender.com/api/food-items/lookup?barcode=0000000000000"
+          url="https://evolvi.onrender.com/api/food-items/lookup?barcode=0000000000000"
           code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 90 "$url" || echo "000")
           echo "HTTP ${code}"
           # 401 = servizio svegio (richiesta senza token respinta dall'auth),

@@ -397,8 +397,8 @@ Mappa dei servizi:
 | Componente | Dove |
 | --- | --- |
 | Postgres + Auth | Supabase cloud (project ref `akmqoezpeeichwiukuwi`) |
-| Backend API | Render Web Service `https://fittrack-1-goh7.onrender.com` |
-| PWA | Vercel `https://fit-track-delta-green.vercel.app` |
+| Backend API | Render Web Service `https://evolvi.onrender.com` |
+| PWA | Vercel `https://evolvi.vercel.app` |
 
 L'ambiente locale (Supabase CLI + server su `:3000`) resta intatto e non si
 mescola con la configurazione cloud.
@@ -434,16 +434,18 @@ dashboard (dettagli anche in "Variabili d'ambiente runtime"):
   (file `.json`, non `.js`: un URL sbagliato fa rispondere 401/500 su ogni
   token ES256 reale)
 - `ALLOWED_ORIGIN` — CSV delle origini **senza slash finale**
-  (es. `https://fit-track-delta-green.vercel.app`): il confronto con
+  (es. `https://evolvi.vercel.app`): il confronto con
   l'header `Origin` del browser è esatto
 - `NODE_VERSION` — versione Node usata in build
 
 ### Frontend di produzione
 
-`.env.production` (versionato — solo valori pubblici `EXPO_PUBLIC_*`) viene
+`.env.production` (NON versionato — solo valori pubblici `EXPO_PUBLIC_*`,
+si configura a mano nel dashboard Vercel) viene
 caricato con `NODE_ENV=production` (`npx expo export`, build Vercel):
+le variabili già presenti in `process.env` vincono su questo file.
 
-- `EXPO_PUBLIC_API_URL` → `https://fittrack-1-goh7.onrender.com/api`
+- `EXPO_PUBLIC_API_URL` → `https://evolvi.onrender.com/api`
 - `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` → progetto cloud
 
 Attenzione: le `EXPO_PUBLIC_*` definite nella **dashboard Vercel** vincono
@@ -478,8 +480,8 @@ rientrare l'utente dentro il PWA (e non su `localhost:3000` o su una
 pagina di errore del browser) in dashboard Supabase → *Authentication →
 URL Configuration*:
 
-- **Site URL** → `https://fit-track-delta-green.vercel.app/email-verified`
-- **Redirect URLs** → `https://fit-track-delta-green.vercel.app/**`
+- **Site URL** → `https://evolvi.vercel.app/email-verified`
+- **Redirect URLs** → `https://evolvi.vercel.app/**`
 
 La route `/(auth)/email-verified` legge la sessione dai token nell'URL,
 mostra "Email verificata!" e con un pulsante entra nell'app (il guard in
@@ -496,7 +498,7 @@ e usare un dominio con conferma); `smoke-api.py` fa seed psql tramite
 `SMOKE_DB_URL` (pooler con `?sslmode=require`):
 
 ```bash
-RENDER=https://fittrack-1-goh7.onrender.com
+RENDER=https://evolvi.onrender.com
 
 API_BASE=$RENDER SMOKE_DB_URL="<pooler?sslmode=require>" \
 SUPABASE_JWT_SECRET="<secret cloud>" \
@@ -504,7 +506,7 @@ EXPO_PUBLIC_SUPABASE_URL=https://akmqoezpeeichwiukuwi.supabase.co \
 EXPO_PUBLIC_SUPABASE_ANON_KEY="<anon key cloud>" \
 python3 scripts/smoke-api.py          # 221/221
 
-API_BASE=$RENDER CORS_ORIGIN=https://fit-track-delta-green.vercel.app \
+API_BASE=$RENDER CORS_ORIGIN=https://evolvi.vercel.app \
 EXPO_PUBLIC_SUPABASE_URL=https://akmqoezpeeichwiukuwi.supabase.co \
 EXPO_PUBLIC_SUPABASE_ANON_KEY="<anon key cloud>" \
 python3 scripts/e2e-client-flow.py    # 15/15
