@@ -1,4 +1,4 @@
-# Blueprint Render — FitTrack API (backend Express + Prisma)
+# Blueprint Render — API Evolvi (backend Express + Prisma)
 # Crea il servizio con: Render Dashboard → New → Blueprint → collega il repo.
 # Le env con `sync: false` vanno inserite nel dashboard dopo la creazione
 # (sono segreti: non devono stare nel repo).

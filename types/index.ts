@@ -1,5 +1,5 @@
 /**
- * Modelli dati di FitTrack.
+ * Modelli dati di Evolvi.
  * Queste interfacce descrivono la forma dei documenti che verranno
  * salvati su API/backend (o localmente durante lo sviluppo mock).
  */

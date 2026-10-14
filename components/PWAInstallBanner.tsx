@@ -75,7 +75,7 @@ export function PWAInstallBanner() {
           <Smartphone size={20} color="#0F172A" strokeWidth={2.2} />
         </View>
         <View className="flex-1 gap-1">
-          <Text className="font-inter-bold text-base text-foreground">Installa FitTrack</Text>
+          <Text className="font-inter-bold text-base text-foreground">Installa Evolvi</Text>
           <Text className="font-sans text-sm leading-5 text-muted">Aggiungi l’app alla schermata Home per usarla come nativa (niente più sola lettura).</Text>
         </View>
         <Pressable onPress={handleDismiss} hitSlop={8} className="h-8 w-8 items-center justify-center rounded-full bg-surface active:opacity-60">

@@ -52,7 +52,7 @@ export default function EmailVerifiedScreen() {
                 Email verificata!
               </Text>
               <Text className="text-center font-sans text-sm leading-5 text-muted">
-                Il tuo account è attivo. Bentornato in FitTrack: puoi entrare.
+                Il tuo account è attivo. Bentornato in Evolvi: puoi entrare.
               </Text>
             </View>
             <Pressable

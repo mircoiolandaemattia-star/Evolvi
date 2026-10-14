@@ -1,4 +1,4 @@
-# FitTrack 💪
+# Evolvi 💪
 
 App per il monitoraggio del fitness: allenamenti, dieta e progressi.
 Costruita con **Expo SDK 57**, **Expo Router**, **NativeWind** (Tailwind per React Native) e **TypeScript**. Gira su **iOS, Android e Web (PWA)**.

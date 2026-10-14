@@ -40,7 +40,7 @@ export default function TabsLayout() {
 /** Sfondo scuro forzato a tutti i livelli nativi dei tab (iOS). */
 const NATIVE_TABS_BG = { backgroundColor: "#0F172A" };
 
-/** Colori del design system FitTrack (dark-only). */
+/** Colori del design system Evolvi (dark-only). */
 const BAR_BG = "#0F172A";
 const BAR_BORDER = "#1E293B";
 const TAB_ACTIVE = "#F97316";

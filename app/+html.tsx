@@ -55,7 +55,7 @@ export default function Root({ children }: PropsWithChildren) {
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-title" content="FitTrack" />
+        <meta name="apple-mobile-web-app-title" content="Evolvi" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black" />
         <ScrollViewStyleReset />
         <style dangerouslySetInnerHTML={{ __html: WEB_THEME_CSS }} />

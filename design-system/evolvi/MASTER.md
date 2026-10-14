@@ -6,7 +6,7 @@
 
 ---
 
-**Project:** FitTrack
+**Project:** Evolvi
 **Generated:** 2026-09-19 12:33:06
 **Category:** Fitness/Gym App
 

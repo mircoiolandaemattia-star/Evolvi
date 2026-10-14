@@ -73,7 +73,7 @@ export default function RegisterScreen() {
             <User size={36} color="#F97316" strokeWidth={2.2} />
           </View>
           <Text className="font-inter-bold text-3xl text-foreground">Crea account</Text>
-          <Text className="text-center font-sans text-sm text-muted">Unisciti a FitTrack in pochi secondi.</Text>
+          <Text className="text-center font-sans text-sm text-muted">Unisciti a Evolvi in pochi secondi.</Text>
         </View>
 
         <View className="gap-4">

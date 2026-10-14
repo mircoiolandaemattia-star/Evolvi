@@ -1,4 +1,4 @@
-"""Smoke test HTTP per il backend FitTrack (profilo users + workout_plans
+"""Smoke test HTTP per il backend Evolvi (profilo users + workout_plans
 + workout_days).
 
 Richiede il Supabase locale attivo (npx supabase start) e il server avviato:

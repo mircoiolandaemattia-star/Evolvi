@@ -56,7 +56,7 @@ export default function LoginScreen() {
           <View className="h-20 w-20 items-center justify-center rounded-3xl bg-primary/15">
             <Dumbbell size={36} color="#F97316" strokeWidth={2.2} />
           </View>
-          <Text className="font-inter-bold text-4xl text-foreground">FitTrack</Text>
+          <Text className="font-inter-bold text-4xl text-foreground">Evolvi</Text>
           <Text className="text-center font-sans text-base text-muted">Monitora allenamenti, dieta e progressi.</Text>
         </View>
 
