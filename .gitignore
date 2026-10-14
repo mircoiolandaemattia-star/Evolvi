@@ -32,8 +32,13 @@ yarn-error.*
 
 # local env files
 .env*.local
-# credenziali DB locale (solo .env.example è versionato)
-/.env
+# credenziali e config ambiente: NON vanno nel repo. Solo .env.example
+# e' versionato (serve da documentazione); .env e .env.production si
+# configurano a mano nel dashboard (Render per il backend, Vercel per la
+# PWA). Nota: le env del dashboard VINCONO su .env.production ( Expo non
+# sovrascrive cio' che e' gia' definito in process.env ).
+/.env*
+!/.env.example
 
 # typescript
 *.tsbuildinfo
