@@ -19,6 +19,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 SRC="${1:-./icon.png}"
+ORIG="$SRC"
 BG="#0F172A"          # colore di sfondo del design system
 SRC_BG="#061326"      # sfondo reale del sorgente (per il keying del marchio)
 
@@ -32,10 +33,19 @@ trap 'rm -rf "$TMP"' EXIT
 magick "$SRC" -fuzz 12% -transparent "$SRC_BG" -trim +repage "$TMP/mark.png"
 read -r MW MH < <(magick identify -format "%w %h\n" "$TMP/mark.png")
 
+# Nel sorgente il marchio non e' centrato (bbox 556x578 a +262,+253 su 1024:
+# ~28px a destra e ~30px in basso rispetto al centro geometrico). Lo si
+# re-inscrive nel canvas a sfondo pieno mantenendo la scala, così tutte le
+# derivazioni (icone piene, adaptive, favicon, maskable) hanno il simbolo
+# esattamente al centro — altrimenti l'icona sulla home risulta spostata.
+magick -size 1024x1024 "xc:$SRC_BG" "$TMP/mark.png" -gravity center -composite \
+  -depth 8 -strip "$TMP/icon.png"
+SRC="$TMP/icon.png"
+
 # Ogni "-resize LxL" preserva l'aspect ratio e inscrive il marchio nel
 # quadrato di lato L, centrato nel canvas (gravity center).
 
-echo "Sorgente: $SRC ($SRC_BG) — marchio ${MW}x${MH}"
+echo "Sorgente: $ORIG ($SRC_BG) — marchio ${MW}x${MH}, recentrato nel canvas"
 
 # --- 2. icone "piene" (sfondo incluso) --------------------------------------
 magick "$SRC" -resize 1024x1024 -depth 8 -strip assets/images/icon.png
