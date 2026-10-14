@@ -3,7 +3,7 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 import { setItem } from "@/lib/storage";
 
 /** Chiave dove l'errore viene copiato, così sopravvive a un riavvio. */
-const STORE_KEY = "fittrack_diag_render_error";
+const STORE_KEY = "evolvi_diag_render_error";
 
 type AppErrorBoundaryProps = {
   children: ReactNode;

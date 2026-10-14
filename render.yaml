@@ -4,7 +4,7 @@
 # (sono segreti: non devono stare nel repo).
 services:
   - type: web
-    name: fittrack-api
+    name: evolvi-api
     runtime: node
     region: frankfurt          # il DB Supabase cloud è in eu-west-1 (Ireland)
     buildCommand: npm install && npx prisma generate && tsc -p tsconfig.server.json

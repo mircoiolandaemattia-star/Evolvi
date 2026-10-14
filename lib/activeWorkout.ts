@@ -51,7 +51,7 @@ export type ActiveWorkoutDraft = {
   updatedAt: number;
 };
 
-const KEY = "fittrack:active-workout";
+const KEY = "evolvi:active-workout";
 
 /** Oltre quest'età la sessione sospesa si considera dimenticata. */
 export const DRAFT_TTL_MS = 24 * 60 * 60 * 1000;

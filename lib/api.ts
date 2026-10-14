@@ -2,8 +2,8 @@ import { router } from "expo-router";
 import { getItem, removeItem, setItem } from "./storage";
 import { supabase } from "./supabase";
 
-const TOKEN_KEY = "fittrack_token";
-const USER_KEY = "fittrack_user";
+const TOKEN_KEY = "evolvi_token";
+const USER_KEY = "evolvi_user";
 
 /**
  * URL di base dell'API.

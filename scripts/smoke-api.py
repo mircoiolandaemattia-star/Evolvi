@@ -170,7 +170,7 @@ def psql(sql: str) -> None:
     Con `SMOKE_DB_URL` (es. pooler cloud) la stessa suite gira contro un
     backend remoto: la connessione passa a quella indicata dall'env."""
     target = os.environ.get("SMOKE_DB_URL")
-    cmd = ["docker", "exec", "supabase_db_FitTrack", "psql"]
+    cmd = ["docker", "exec", "supabase_db_Evolvi", "psql"]
     cmd += [target] if target else ["-U", "postgres", "-d", "postgres"]
     cmd += ["-v", "ON_ERROR_STOP=1", "-c", sql]
     subprocess.run(cmd, check=True, capture_output=True, text=True)
@@ -919,7 +919,7 @@ def main():
         record("DELETE /meals con alimenti dentro → 204", status == 204,
                f"atteso 204, ricevuto {status}")
         leftover_food = subprocess.run(
-            ["docker", "exec", "supabase_db_FitTrack", "psql", "-U", "postgres",
+            ["docker", "exec", "supabase_db_Evolvi", "psql", "-U", "postgres",
              "-d", "postgres", "-tAc",
              f"select count(*) from food_items where meal_id='{meal_id}'"],
             capture_output=True, text=True, check=True).stdout.strip()
@@ -1049,7 +1049,7 @@ def main():
 
         run("POST /progress-photos (seconda, per il DELETE)", "POST",
             "/api/progress-photos",
-            body={"date": "2026-09-15", "photo_url": "/storage/fittrack/p2.jpg"},
+            body={"date": "2026-09-15", "photo_url": "/storage/evolvi/p2.jpg"},
             status=201, test=pp_created_2)
         pp_delete_id = pp_ids[1]
 
@@ -1274,7 +1274,7 @@ def main():
                f"atteso 204, ricevuto {status}")
 
         days = subprocess.run(
-            ["docker", "exec", "supabase_db_FitTrack", "psql", "-U", "postgres",
+            ["docker", "exec", "supabase_db_Evolvi", "psql", "-U", "postgres",
              "-d", "postgres", "-tAc",
              f"select count(*) from workout_days where workout_plan_id='{plan_id}'"],
             capture_output=True, text=True, check=True).stdout.strip()
@@ -1282,7 +1282,7 @@ def main():
                f"righe workout_days residue: {days}")
 
         leftover_ex = subprocess.run(
-            ["docker", "exec", "supabase_db_FitTrack", "psql", "-U", "postgres",
+            ["docker", "exec", "supabase_db_Evolvi", "psql", "-U", "postgres",
              "-d", "postgres", "-tAc",
              f"select count(*) from exercises where workout_day_id='{day_id}'"],
             capture_output=True, text=True, check=True).stdout.strip()

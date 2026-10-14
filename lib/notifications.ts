@@ -23,7 +23,19 @@ import { getJson, setJson } from "./storage";
 const ENABLED_KEY = "notifications:enabled";
 
 /** Prefisso dei nostri identificativi: il ripristino cancella solo i nostri. */
-const ID_PREFIX = "fittrack:reminder:";
+const ID_PREFIX = "evolvi:reminder:";
+
+/**
+ * Prefissi storici (prodotto chiamato FitTrack). Senza questa lista il
+ * ripristino non riconoscerebbe più le notifiche programmate col nome vecchio:
+ * resterebbero attive per sempre e duplicherebbero ogni promemoria.
+ */
+const LEGACY_ID_PREFIXES = ["fittrack:reminder:"];
+
+/** true se l'identificativo appartiene a noi (che sia del nome attuale o storico). */
+function isOurNotification(identifier: string): boolean {
+  return identifier.startsWith(ID_PREFIX) || LEGACY_ID_PREFIXES.some((p) => identifier.startsWith(p));
+}
 
 /** Canale Android: senza canale non c'è alcun avviso su Android 8+. */
 const CHANNEL_ID = "promemoria";
@@ -170,7 +182,7 @@ async function runSync(reminders: Reminder[]): Promise<void> {
     // eliminato non lascia scorie nel sistema.
     const scheduled = await N.getAllScheduledNotificationsAsync();
     for (const request of scheduled) {
-      if (request.identifier.startsWith(ID_PREFIX)) {
+      if (isOurNotification(request.identifier)) {
         await N.cancelScheduledNotificationAsync(request.identifier);
       }
     }

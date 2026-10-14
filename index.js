@@ -15,7 +15,7 @@
 // ripristinare "main": "expo-router/entry" in package.json.
 
 const g = globalThis;
-const STORE_KEY = "fittrack_diag_fatal_error";
+const STORE_KEY = "evolvi_diag_fatal_error";
 let shown = false;
 
 function formatError(error, extra) {

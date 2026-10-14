@@ -13,8 +13,8 @@ import type { User } from "@/types";
 import { getJson, removeItem, setItem, setJson } from "./storage";
 import { supabase } from "./supabase";
 
-const TOKEN_KEY = "fittrack_token";
-const USER_KEY = "fittrack_user";
+const TOKEN_KEY = "evolvi_token";
+const USER_KEY = "evolvi_user";
 
 interface AuthContextValue {
   /** true finché non è stato ripristinato lo stato dal disco. */

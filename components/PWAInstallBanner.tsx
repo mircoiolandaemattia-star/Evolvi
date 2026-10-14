@@ -4,7 +4,7 @@ import { Download, Share, Smartphone, X } from "lucide-react-native";
 import { Card } from "@/components/home/Card";
 import { useIsStandalone } from "@/lib/useStandalone";
 
-const DISMISS_KEY = "fittrack_pwa_banner_dismissed";
+const DISMISS_KEY = "evolvi_pwa_banner_dismissed";
 
 function isIOS(): boolean {
   if (typeof navigator === "undefined") return false;

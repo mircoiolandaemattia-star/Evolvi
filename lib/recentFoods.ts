@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { DietFoodDraft } from "@/types";
 
-const RECENT_FOODS_KEY = "fittrack_recent_foods";
+const RECENT_FOODS_KEY = "evolvi_recent_foods";
 const MAX_RECENT = 8;
 
 export async function getRecentFoods(): Promise<DietFoodDraft[]> {
