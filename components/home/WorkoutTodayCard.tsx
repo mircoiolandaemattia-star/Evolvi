@@ -2,6 +2,7 @@ import { Pressable, Text, View } from "react-native";
 import { router } from "expo-router";
 import { CheckCircle2, ChevronRight, Dumbbell, Moon } from "lucide-react-native";
 import type { WorkoutDay, WorkoutSession } from "@/types";
+import { enterDown } from "@/lib/anim";
 import { Card } from "./Card";
 
 /** "18:32" — ora locale di fine sessione. */
@@ -39,7 +40,7 @@ export function WorkoutTodayCard({ day, session = null }: WorkoutTodayCardProps)
   }
 
   return (
-    <Card>
+    <Card entering={enterDown(70)}>
       <View className="flex-row items-center gap-3">
         <View
           className={`h-11 w-11 items-center justify-center rounded-xl ${

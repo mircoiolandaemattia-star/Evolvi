@@ -2,6 +2,7 @@ import { Pressable, Text, View } from "react-native";
 import { router } from "expo-router";
 import { Plus, UtensilsCrossed } from "lucide-react-native";
 import type { Meal } from "@/types";
+import { enterDown } from "@/lib/anim";
 import { Card } from "./Card";
 
 type MealsSummaryCardProps = {
@@ -18,7 +19,7 @@ export function MealsSummaryCard({ meals }: MealsSummaryCardProps) {
   }
 
   return (
-    <Card>
+    <Card entering={enterDown(140)}>
       <View className="flex-row items-center justify-between">
         <View className="flex-row items-center gap-3">
           <View className="h-11 w-11 items-center justify-center rounded-xl bg-accent/15">
