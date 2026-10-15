@@ -85,6 +85,8 @@ export const dietKeys = {
   meals: (date: string) => ["diet", "meals", date] as const,
   /** Pasti in un intervallo (usato dal grafico calorie dei Progressi). */
   mealsRange: (from: string, to: string) => ["diet", "meals", "range", from, to] as const,
+  /** Prefisso di tutte le query pasti: singola data E intervallo. */
+  mealsAll: ["diet", "meals"] as const,
   foodItems: (mealId: string) => ["diet", "food-items", mealId] as const,
   /** Prefisso per invalidare TUTTE le query degli alimenti. */
   foodItemsAll: ["diet", "food-items"] as const,
@@ -278,9 +280,10 @@ export function useAddFoodItems() {
       }
       return created;
     },
-    onSuccess: (_items, { date }) => {
-      // Il pasto può essere appena nato: ricarica lista e tutti gli alimenti.
-      void queryClient.invalidateQueries({ queryKey: dietKeys.meals(date) });
+    onSuccess: () => {
+      // Il pasto può essere appena nato: ricarica lista (singola data, usata
+      // dal diario) e intervallo (streak pasti della Home e grafici).
+      void queryClient.invalidateQueries({ queryKey: dietKeys.mealsAll });
       void queryClient.invalidateQueries({ queryKey: dietKeys.foodItemsAll });
     },
   });
@@ -313,6 +316,9 @@ export function useUpdateFoodItem() {
     onSuccess: (_item, { mealId }) => {
       void queryClient.invalidateQueries({ queryKey: dietKeys.foodItems(mealId) });
       void queryClient.invalidateQueries({ queryKey: dietKeys.foodItemsAll });
+      // Anche i totali del giorno cambiano: la cache pasti deve rinfrescarsi
+      // (serve a diario, streak della Home e grafici).
+      void queryClient.invalidateQueries({ queryKey: dietKeys.mealsAll });
     },
   });
 }
@@ -325,6 +331,7 @@ export function useDeleteFoodItem() {
       api.delete(`/food-items/${foodId}`),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: dietKeys.foodItemsAll });
+      void queryClient.invalidateQueries({ queryKey: dietKeys.mealsAll });
     },
   });
 }

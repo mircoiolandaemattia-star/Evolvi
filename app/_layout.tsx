@@ -15,6 +15,7 @@ import { AuthProvider, useAuth } from "@/lib/auth";
 import { AppErrorBoundary } from "@/components/AppErrorBoundary";
 import { isProfileMissing, useProfile } from "@/lib/profileQueries";
 import { configureNotifications } from "@/lib/notifications";
+import { loadReduceMotion } from "@/lib/motionSettings";
 import "../global.css";
 
 // Tieni visibile lo splash finché font e stato auth non sono pronti.
@@ -47,8 +48,11 @@ export default function RootLayout() {
 
   // Handler delle notifiche: serve all'avvio perché i promemoria ricevuti
   // con l'app aperta vengano mostrati (senza handler il sistema li butta).
+  // La preferenza "riduci movimento" si legge subito: le micro-animazioni
+  // devono sapere fin dal primo render se disattivarle.
   useEffect(() => {
     void configureNotifications();
+    void loadReduceMotion();
   }, []);
 
   return (

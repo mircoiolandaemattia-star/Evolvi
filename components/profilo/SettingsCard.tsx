@@ -8,10 +8,13 @@ type Props = {
   /** Permesso di sistema: `null` finchè non è stato interrogato. */
   permission: boolean | null;
   onChange: (value: boolean) => void;
+  /** Preferenza "riduci movimento" salvata sul dispositivo. */
+  reduceMotion: boolean;
+  onReduceMotionChange: (value: boolean) => void;
 };
 
 /**
- * Impostazioni dell'app.
+ * Impostazioni dell'app: notifiche e riduci movimento.
  *
  * Conteneva anche l'interruttore della modalità scura, ma era finto: il
  * design system è dark-only (`Appearance.setColorScheme("dark")` in _layout),
@@ -19,9 +22,18 @@ type Props = {
  * i promemoria programmati sul dispositivo.
  *
  * Su browser non esistono notifiche locali programmate: l'interruttore
- * resta spento e lo spiega.
+ * resta spento e lo spiega. "Riduci movimento" vale invece su ogni
+ * piattaforma e disattiva le micro-animazioni dell'app (contatori, barre,
+ * ring, entrate delle card).
  */
-export function SettingsCard({ readOnly = false, enabled, permission, onChange }: Props) {
+export function SettingsCard({
+  readOnly = false,
+  enabled,
+  permission,
+  onChange,
+  reduceMotion,
+  onReduceMotionChange,
+}: Props) {
   const isWeb = Platform.OS === "web";
   const disabled = readOnly || isWeb;
   // Promemoria accesi solo con preferenza E permesso: un permesso negato
@@ -49,6 +61,21 @@ export function SettingsCard({ readOnly = false, enabled, permission, onChange }
           value={active}
           onValueChange={disabled ? undefined : onChange}
           disabled={disabled}
+          trackColor={{ true: "#F97316" }}
+          thumbColor="#fff"
+        />
+      </View>
+
+      <View className="flex-row items-center justify-between gap-3 rounded-xl border border-border bg-background/40 px-4 py-3">
+        <View className="flex-1 gap-0.5">
+          <Text className="font-sans text-sm text-foreground">Riduci movimento</Text>
+          <Text className="font-sans text-xs leading-4 text-muted">
+            Disattiva le animazioni: i numeri e le barre arrivano subito al valore finale.
+          </Text>
+        </View>
+        <Switch
+          value={reduceMotion}
+          onValueChange={onReduceMotionChange}
           trackColor={{ true: "#F97316" }}
           thumbColor="#fff"
         />

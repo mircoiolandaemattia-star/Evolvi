@@ -9,9 +9,11 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
+import Animated from "react-native-reanimated";
 import { LogOut } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { Card } from "@/components/home/Card";
+import { enterDown } from "@/lib/anim";
 import { PersonalDataCard, type PersonalData } from "@/components/profilo/PersonalDataCard";
 import { GoalSelector } from "@/components/profilo/GoalSelector";
 import { ActivityLevelSelector } from "@/components/profilo/ActivityLevelSelector";
@@ -26,6 +28,7 @@ import { type ActivityLevel, type Goal } from "@/lib/calorieCalculator";
 import { GOAL_TO_API, ACTIVITY_TO_API, goalFromApi, activityFromApi, type CreateProfileInput } from "@/lib/profileQueries";
 import { isApiError } from "@/lib/api";
 import { confirmAction, notify } from "@/lib/feedback";
+import { setReduceMotion, useReduceMotionSetting } from "@/lib/motionSettings";
 import {
   getNotificationPermission,
   loadNotificationsEnabled,
@@ -71,6 +74,10 @@ export default function ProfiloScreen() {
   // mai letto (nessuna UI lo usa) → hole nell'array destructuring.
   const [, setEditProfileOpen] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Riduci movimento: preferenza in-app (lib/motionSettings), disattiva
+  // le micro-animazioni dell'intera app.
+  const reduceMotion = useReduceMotionSetting();
 
   // Notifiche: preferenza del dispositivo + permesso di sistema. Finchè non
   // sono letti non si tocca nulla di programmato, altrimenti un riavvio
@@ -311,46 +318,62 @@ export default function ProfiloScreen() {
 
   const leftColumn = (
     <View className="gap-4">
-      <PersonalDataCard data={personalData} readOnly={isReadOnly} onSave={handlePersonalSave} />
+      <Animated.View entering={enterDown(0)}>
+        <PersonalDataCard data={personalData} readOnly={isReadOnly} onSave={handlePersonalSave} />
+      </Animated.View>
       {/* Sopra entrambi i selettori: è il numero che l'utente va a cercare
           per confrontarlo con la Home. Prima era dentro ciascuno dei due. */}
-      <TdeeCard
-        birthDate={profile?.birth_date ?? null}
-        gender={profile?.gender ?? null}
-        heightCm={profile?.height_cm ?? null}
-        weightKg={profile?.weight_kg ?? null}
-        goal={profile?.goal ?? "maintain"}
-        activityLevel={profile?.activity_level ?? "sedentary"}
-      />
-      <GoalSelector value={serverGoal} readOnly={isReadOnly} onChange={handleGoalChange} />
-      <ActivityLevelSelector value={serverActivity} readOnly={isReadOnly} onChange={handleActivityChange} />
+      <Animated.View entering={enterDown(130)}>
+        <TdeeCard
+          birthDate={profile?.birth_date ?? null}
+          gender={profile?.gender ?? null}
+          heightCm={profile?.height_cm ?? null}
+          weightKg={profile?.weight_kg ?? null}
+          goal={profile?.goal ?? "maintain"}
+          activityLevel={profile?.activity_level ?? "sedentary"}
+        />
+      </Animated.View>
+      <Animated.View entering={enterDown(260)}>
+        <GoalSelector value={serverGoal} readOnly={isReadOnly} onChange={handleGoalChange} />
+      </Animated.View>
+      <Animated.View entering={enterDown(390)}>
+        <ActivityLevelSelector value={serverActivity} readOnly={isReadOnly} onChange={handleActivityChange} />
+      </Animated.View>
     </View>
   );
 
   const rightColumn = (
     <View className="gap-4">
-      <SettingsCard
-        readOnly={isReadOnly}
-        enabled={notifEnabled}
-        permission={notifGranted}
-        onChange={handleNotifToggle}
-      />
-      <ReminderCard
-        reminders={reminders}
-        readOnly={isReadOnly}
-        onToggle={handleReminderToggle}
-        onDelete={handleReminderDelete}
-        onAdd={() => setShowAddReminder(true)}
-      />
-      <SubscriptionCard
-        state={subState}
-        trialEndsAt={profile?.subscription_expires_at ?? null}
-        nextRenewal={subState === "premium" ? profile?.subscription_expires_at ?? null : null}
-        readOnly={isReadOnly}
-        onStartTrial={handleStartTrial}
-        onConfirm={handleConfirm}
-        onManage={handleManage}
-      />
+      <Animated.View entering={enterDown(130)}>
+        <SettingsCard
+          readOnly={isReadOnly}
+          enabled={notifEnabled}
+          permission={notifGranted}
+          onChange={handleNotifToggle}
+          reduceMotion={reduceMotion}
+          onReduceMotionChange={(value) => void setReduceMotion(value)}
+        />
+      </Animated.View>
+      <Animated.View entering={enterDown(260)}>
+        <ReminderCard
+          reminders={reminders}
+          readOnly={isReadOnly}
+          onToggle={handleReminderToggle}
+          onDelete={handleReminderDelete}
+          onAdd={() => setShowAddReminder(true)}
+        />
+      </Animated.View>
+      <Animated.View entering={enterDown(390)}>
+        <SubscriptionCard
+          state={subState}
+          trialEndsAt={profile?.subscription_expires_at ?? null}
+          nextRenewal={subState === "premium" ? profile?.subscription_expires_at ?? null : null}
+          readOnly={isReadOnly}
+          onStartTrial={handleStartTrial}
+          onConfirm={handleConfirm}
+          onManage={handleManage}
+        />
+      </Animated.View>
       <Pressable onPress={handleLogout} className="flex-row items-center justify-center gap-2 rounded-xl border border-destructive/30 bg-destructive/10 py-3.5 active:opacity-80">
         <LogOut size={16} color="#EF4444" strokeWidth={2.2} />
         <Text className="font-inter-semibold text-sm text-destructive">Logout</Text>
@@ -376,7 +399,7 @@ export default function ProfiloScreen() {
       >
         <Text className="font-inter-bold text-3xl text-foreground">Profilo</Text>
 
-        <Card className="gap-2">{header}</Card>
+        <Card className="gap-2" entering={enterDown(0)}>{header}</Card>
 
         {saveErrorBanner}
 

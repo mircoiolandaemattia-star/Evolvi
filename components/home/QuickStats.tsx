@@ -32,13 +32,16 @@ function StatItem({
 }
 
 /**
- * Tre card affiancate: streak allenamenti, ore settimanali, sessioni totali.
+ * Tre card affiancate: streak dei pasti, ore settimanali, sessioni totali.
  * I tre numeri salgono al contatore scaglionati, così la card sembra
  * "calcolare" le statistiche appena appare.
+ *
+ * La streak misura i giorni consecutivi con **almeno un pasto registrato**
+ * nel diario (non le sessioni in palestra).
  */
 export function QuickStats({ stats }: QuickStatsProps) {
   return (
-    <Card entering={enterDown(210)}>
+    <Card entering={enterDown(390)}>
       <Text className="font-inter-semibold text-base text-foreground">Statistiche</Text>
       <View className="mt-4 flex-row gap-2">
         <StatItem
@@ -50,7 +53,7 @@ export function QuickStats({ stats }: QuickStatsProps) {
               className="font-inter-bold text-lg text-foreground"
             />
           }
-          label="Streak"
+          label="Streak pasti"
           accentClassName="bg-primary/15"
         />
         <StatItem

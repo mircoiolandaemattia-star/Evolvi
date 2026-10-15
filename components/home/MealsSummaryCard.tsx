@@ -2,6 +2,7 @@ import { Pressable, Text, View } from "react-native";
 import { router } from "expo-router";
 import { Plus, UtensilsCrossed } from "lucide-react-native";
 import type { Meal } from "@/types";
+import { suggestedMealType } from "@/lib/dietaStore";
 import { enterDown } from "@/lib/anim";
 import { Card } from "./Card";
 
@@ -10,16 +11,22 @@ type MealsSummaryCardProps = {
 };
 
 /**
- * Card "Pasti di oggi": elenco pasti con calorie e bottone "+"
- * per aggiungerne uno nuovo (naviga alla tab Dieta).
+ * Card "Pasti di oggi": elenco pasti con calorie e bottone "+" che apre
+ * **direttamente** il modal di inserimento del Dieta per il pasto del
+ * momento (dall'ora corrente), saltando il passaggio per la tab.
+ *
+ * Toccando una riga si apre invece il Dieta sulla giornata.
  */
 export function MealsSummaryCard({ meals }: MealsSummaryCardProps) {
-  function handleAddMeal() {
-    router.navigate("/(tabs)/dieta");
+  function openAddMeal() {
+    router.navigate({
+      pathname: "/(tabs)/dieta",
+      params: { addMeal: suggestedMealType() },
+    });
   }
 
   return (
-    <Card entering={enterDown(140)}>
+    <Card entering={enterDown(260)}>
       <View className="flex-row items-center justify-between">
         <View className="flex-row items-center gap-3">
           <View className="h-11 w-11 items-center justify-center rounded-xl bg-accent/15">
@@ -29,7 +36,7 @@ export function MealsSummaryCard({ meals }: MealsSummaryCardProps) {
         </View>
 
         <Pressable
-          onPress={handleAddMeal}
+          onPress={openAddMeal}
           accessibilityRole="button"
           accessibilityLabel="Aggiungi un pasto"
           hitSlop={8}
@@ -40,17 +47,25 @@ export function MealsSummaryCard({ meals }: MealsSummaryCardProps) {
       </View>
 
       {meals.length === 0 ? (
-        <View className="mt-4 rounded-xl border border-dashed border-border px-4 py-6">
+        <Pressable
+          onPress={openAddMeal}
+          accessibilityRole="button"
+          accessibilityLabel="Registra il primo pasto di oggi"
+          className="mt-4 rounded-xl border border-dashed border-border px-4 py-6 active:opacity-80"
+        >
           <Text className="text-center font-sans text-sm text-muted">
-            Nessun pasto registrato
+            Nessun pasto registrato — tocca qui per aggiungerne uno
           </Text>
-        </View>
+        </Pressable>
       ) : (
         <View className="mt-4 gap-2">
           {meals.map((meal) => (
-            <View
+            <Pressable
               key={meal.id}
-              className="flex-row items-center justify-between rounded-xl bg-background/60 px-4 py-3"
+              onPress={() => router.navigate("/(tabs)/dieta")}
+              accessibilityRole="button"
+              accessibilityLabel={`${meal.type}, ${meal.totalCalories} calorie, apri il diario`}
+              className="flex-row items-center justify-between rounded-xl bg-background/60 px-4 py-3 active:opacity-70"
             >
               <View className="flex-row items-center gap-2.5">
                 <View className="h-2 w-2 rounded-full bg-primary" />
@@ -59,7 +74,7 @@ export function MealsSummaryCard({ meals }: MealsSummaryCardProps) {
               <Text className="font-inter-semibold text-sm text-foreground">
                 {meal.totalCalories} kcal
               </Text>
-            </View>
+            </Pressable>
           ))}
         </View>
       )}

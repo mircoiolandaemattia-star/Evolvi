@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { ChevronDown, ChevronUp, Dumbbell, Moon, PenLine, Play, Trash2 } from "lucide-react-native";
 import type { WorkoutDay } from "@/types";
 import { getDayLabel } from "@/lib/mock-data";
+import { enterDown } from "@/lib/anim";
 import { Card } from "@/components/home/Card";
 import { useIsStandalone } from "@/lib/useStandalone";
 import { ExerciseItem } from "./ExerciseItem";
@@ -12,6 +13,8 @@ type WorkoutDayCardProps = {
   /** Evidenzia "Oggi" quando il giorno corrisponde alla data corrente. */
   isToday?: boolean;
   expanded: boolean;
+  /** Ritardo dell'entrata della card (ms), per la cascata della schermata. */
+  enterDelay?: number;
   onToggle: () => void;
   /** La scheda è modificabile su questa piattaforma (no browser PWA). */
   editable?: boolean;
@@ -35,6 +38,7 @@ export function WorkoutDayCard({
   day,
   isToday = false,
   expanded,
+  enterDelay = 0,
   onToggle,
   editable = false,
   onEdit,
@@ -60,7 +64,7 @@ export function WorkoutDayCard({
       : `${day.exercises.length} esercizi`;
 
   return (
-    <Card className="overflow-hidden p-0">
+    <Card className="overflow-hidden p-0" entering={enterDown(enterDelay)}>
       {/* Header: tap sulla zona di testo per espandere/chiudere, i bottoni
           di modifica ed eliminazione sono suoi fratelli (mai annidati,
           altrimenti un tocco aprirebbe anche il form). */}

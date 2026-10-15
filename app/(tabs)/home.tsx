@@ -4,7 +4,7 @@ import { Screen } from "@/components/Screen";
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
 import { useAuth } from "@/lib/auth";
 import { dateToString } from "@/lib/dietaStore";
-import { useDiaryDay } from "@/lib/dietQueries";
+import { useDiaryDay, useMealsInRange } from "@/lib/dietQueries";
 import { getTodayDayOfWeek, type QuickStats as QuickStatsData } from "@/lib/mock-data";
 import { useProfile } from "@/lib/profileQueries";
 import { useWorkoutPlan, useWorkoutPlans, useWorkoutSessions } from "@/lib/workoutQueries";
@@ -15,6 +15,9 @@ import { MealsSummaryCard } from "@/components/home/MealsSummaryCard";
 import { QuickStats } from "@/components/home/QuickStats";
 
 const WIDE_BREAKPOINT = 768; // px
+
+/** Finestra (giorni) interrogata per la streak dei pasti. */
+const STREAK_WINDOW_DAYS = 90;
 
 function getGreeting(date: Date): string {
   const hour = date.getHours();
@@ -33,15 +36,24 @@ function formatToday(date: Date): string {
 }
 
 /**
- * Statistiche rapide derivate dalle sessioni salvate:
- * - **streak**: giorni consecutivi con almeno una sessione; se oggi non ce
- *   n'è ancora parte da ieri, così non si azzera al mattino;
+ * Statistiche rapide della Home:
+ * - **streak pasti**: giorni consecutivi con almeno un pasto registrato
+ *   (almeno un alimento nel diario); se oggi non c'è ancora parte da ieri,
+ *   così non si azzera al mattino;
  * - **ore settimanali**: durata delle sessioni dalla mezzanotte di lunedì;
  * - **sessioni totali**: tutte le sessioni chiuse.
+ *
+ * `mealDays` è l'insieme delle date con almeno un pasto (ultimi
+ * `STREAK_WINDOW_DAYS` giorni); per oggi fa fede `todayLogged`, che arriva
+ * dal diario già compilato con gli alimenti.
  */
-function computeQuickStats(sessions: WorkoutSession[]): QuickStatsData {
+function computeQuickStats(
+  sessions: WorkoutSession[],
+  mealDays: Set<string>,
+  todayLogged: boolean,
+): QuickStatsData {
   const today = new Date();
-  const dayKeys = new Set(sessions.map((session) => dateToString(new Date(session.startedAt))));
+  const todayKey = dateToString(today);
 
   const weekStart = new Date(today);
   weekStart.setHours(0, 0, 0, 0);
@@ -50,11 +62,18 @@ function computeQuickStats(sessions: WorkoutSession[]): QuickStatsData {
     .filter((session) => new Date(session.startedAt) >= weekStart)
     .reduce((sum, session) => sum + session.durationMinutes, 0);
 
+  // Streak sui pasti: la riga del giorno serve solo ad aprire la serie,
+  // non è lei a far parte il giorno (ieri resta contato anche se oggi
+  // non si è ancora registrato nulla).
+  const daysWithMeals = new Set(mealDays);
+  daysWithMeals.delete(todayKey);
+  if (todayLogged) daysWithMeals.add(todayKey);
+
   const cursor = new Date(today);
   cursor.setHours(0, 0, 0, 0);
-  if (!dayKeys.has(dateToString(cursor))) cursor.setDate(cursor.getDate() - 1);
+  if (!daysWithMeals.has(dateToString(cursor))) cursor.setDate(cursor.getDate() - 1);
   let streakDays = 0;
-  while (dayKeys.has(dateToString(cursor))) {
+  while (daysWithMeals.has(dateToString(cursor))) {
     streakDays += 1;
     cursor.setDate(cursor.getDate() - 1);
   }
@@ -86,6 +105,15 @@ export default function HomeScreen() {
   const planQuery = useWorkoutPlan(activePlanId);
   const sessionsQuery = useWorkoutSessions();
 
+  // Finestra per la streak dei pasti: gli ultimi STREAK_WINDOW_DAYS giorni,
+  // una sola richiesta (le date passate con ?from=&to=).
+  const streakFrom = useMemo(() => {
+    const from = new Date();
+    from.setDate(from.getDate() - (STREAK_WINDOW_DAYS - 1));
+    return dateToString(from);
+  }, []);
+  const mealsRangeQuery = useMealsInRange(streakFrom, today);
+
   const displayName = useMemo(() => {
     const first = user?.name?.trim().split(/\s+/)[0] ?? "";
     if (!first) return "";
@@ -107,9 +135,22 @@ export default function HomeScreen() {
     [planQuery.data],
   );
 
+  // Date con almeno un pasto registrato nella finestra (escluso oggi,
+  // che viene deciso dal diario qui sotto).
+  const daysWithMeals = useMemo(() => {
+    const days = new Set<string>();
+    (mealsRangeQuery.data ?? []).forEach((meal) => days.add(meal.date));
+    return days;
+  }, [mealsRangeQuery.data]);
+
   const stats = useMemo(
-    () => computeQuickStats(sessionsQuery.data ?? []),
-    [sessionsQuery.data],
+    () =>
+      computeQuickStats(
+        sessionsQuery.data ?? [],
+        daysWithMeals,
+        mealsToday.length > 0,
+      ),
+    [sessionsQuery.data, daysWithMeals, mealsToday],
   );
 
   // Sessione chiusa oggi sul giorno programmato: la card "Allenamento di

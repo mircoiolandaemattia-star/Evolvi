@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
 import {
+  FadeIn,
   FadeInDown,
+  FadeOut,
   useReducedMotion,
   useSharedValue,
   withDelay,
@@ -10,6 +12,7 @@ import {
   type EntryOrExitLayoutType,
   type SharedValue,
 } from "react-native-reanimated";
+import { useReduceMotionSetting } from "./motionSettings";
 
 /**
  * Micro-animazioni condivise (Reanimated + contatori).
@@ -17,17 +20,21 @@ import {
  * Due famiglie:
  * - `useCountUp` / `<CountUp>`: numeri che "contano" fino al valore. Il loop
  *   gira su `requestAnimationFrame` nel JS thread e vive dentro il piccolo
- *   componente che renderizza il testo, così le rirenderi restano locali e
- *   funziona anche sul web (dove invece le animazioni di layout sono omesse).
+ *   componente che renderizza il testo, così le rirenderi restano locali.
  * - `useProgress` / `enterDown`: barre, ring e entrate delle card, animati
  *   sul UI thread da Reanimated.
  *
- * In entrambi i casi vale l'impostazione di accessibilità "riduci movimento":
- * con reduce motion attivo i valori arrivano subito al target.
+ * Ogni animazione rispetta il "riduci movimento", che può venire da due
+ * posti: l'impostazione di sistema (letta da Reanimated) e quella in-app
+ * in Profilo (`lib/motionSettings.ts`). Con uno dei due attivo i valori
+ * arrivano subito al target, senza transizioni.
  */
 
 /** Durata tipica delle micro-animazioni (ms). */
 export const ANIM_DURATION = 750;
+
+/** Durata dell'entrata delle card (ms): lenta abbastanza da essere notata. */
+export const ENTER_DURATION = 750;
 
 /** `true` solo dove girano le animazioni native (escluso il web statico). */
 export const IS_NATIVE = Platform.OS !== "web";
@@ -51,16 +58,25 @@ function easeOutCubic(t: number): number {
 }
 
 /**
+ * `true` quando le animazioni vanno saltate: impostazione di sistema
+ * **o** in-app (Profilo → Impostazioni → Riduci movimento).
+ */
+export function useMotionOff(): boolean {
+  const systemReduced = useReducedMotion();
+  const appReduced = useReduceMotionSetting();
+  return systemReduced || appReduced;
+}
+
+/**
  * Numero che conta fino a `target`.
  *
  * Parte dal valore corrente (0 al primo render) e raggiunge `target` con
  * easing; se `target` cambia durante l'animazione (dati che arrivano dal
  * backend) riparte da ciò che è già stato mostrato, senza scatti.
- * Con reduce motion attivo assegna `target` direttamente.
  */
 export function useCountUp(target: number, options: TimingOptions = {}): number {
   const { duration = ANIM_DURATION, delay = 0 } = options;
-  const reduced = useReducedMotion();
+  const motionOff = useMotionOff();
   const [value, setValue] = useState(0);
   const fromRef = useRef(0);
 
@@ -70,7 +86,7 @@ export function useCountUp(target: number, options: TimingOptions = {}): number 
     if (from === target) return;
 
     // Con "riduci movimento" si salta direttamente al valore finale.
-    const totalDuration = reduced ? 0 : duration;
+    const totalDuration = motionOff ? 0 : duration;
     let raf = 0;
     let startedAt = 0;
 
@@ -90,7 +106,7 @@ export function useCountUp(target: number, options: TimingOptions = {}): number 
 
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [target, duration, delay, reduced]);
+  }, [target, duration, delay, motionOff]);
 
   return value;
 }
@@ -105,32 +121,68 @@ export function useCountUp(target: number, options: TimingOptions = {}): number 
  */
 export function useProgress(ratio: number, options: TimingOptions = {}): SharedValue<number> {
   const { duration = ANIM_DURATION, delay = 0 } = options;
-  const reduced = useReducedMotion();
+  const motionOff = useMotionOff();
   const target = clamp01(ratio);
   const progress = useSharedValue(0);
 
   useEffect(() => {
-    // Con reduce motion (o sul web) il valore arriva subito: nessuna anima.
-    if (reduced || !IS_NATIVE) {
+    // Con riduci movimento (o sul web) il valore arriva subito: niente anima.
+    if (motionOff || !IS_NATIVE) {
       progress.value = target;
       return;
     }
     // Reanimated 4 non accetta `delay` in `withTiming`: il ritardo va da `withDelay`.
     const animated = withTiming(target, { duration, easing: EASE });
     progress.value = delay > 0 ? withDelay(delay, animated) : animated;
-  }, [target, duration, delay, reduced, progress]);
+  }, [target, duration, delay, motionOff, progress]);
 
   return progress;
 }
 
 /**
  * Entrata morbida "scaglionata" per le card di una schermata:
- * `entering={enterDown(80)}`.
+ * `entering={enterDown(120)}` — fade + discesa lenta (750ms), così la
+ * cascata si vede mentre si guarda lo schermo.
  *
  * Restituisce `undefined` sul web: le animazioni di layout lì sono omesse
  * per non rischiare elementi invisibili nel PWA, che resta statico e leggibile.
  */
 export function enterDown(delayMs = 0): EntryOrExitLayoutType | undefined {
   if (!IS_NATIVE) return undefined;
-  return FadeInDown.delay(delayMs).duration(480).easing(EASE);
+  return FadeInDown.delay(delayMs).duration(ENTER_DURATION).easing(EASE);
+}
+
+/**
+ * Cascata scaglionata per N card: `cards.map((c, i) => <Card entering={enterStagger(i)} …>)`.
+ * `step` è lo scarto tra una card e la successiva (default 130ms).
+ */
+export function enterStagger(index: number, step = 130): EntryOrExitLayoutType | undefined {
+  return enterDown(index * step);
+}
+
+/**
+ * Entrata/uscita dei contenuti che si espandono (sezioni pasto, filtri):
+ * più rapida delle card (260/160ms), perché segue un tocco immediato.
+ * `delayMs` serve a dare una mini-cascata alle righe di un elenco.
+ *
+ * `off` è il valore di `useMotionOff()`: le entering animation sono props
+ * statiche, quindi il "riduci movimento" va passato a mano.
+ */
+export function expandIn(off = false, delayMs = 0): EntryOrExitLayoutType | undefined {
+  if (off || !IS_NATIVE) return undefined;
+  return FadeInDown.delay(delayMs).duration(260).easing(EASE);
+}
+
+export function expandOut(off = false): EntryOrExitLayoutType | undefined {
+  if (off || !IS_NATIVE) return undefined;
+  return FadeOut.duration(160).easing(EASE);
+}
+
+/**
+ * Entrata di un pannello dentro un modal: dissolvenza rapida dal basso.
+ * Stessa logica di `expandIn` per il "riduci movimento".
+ */
+export function modalIn(off = false): EntryOrExitLayoutType | undefined {
+  if (off || !IS_NATIVE) return undefined;
+  return FadeIn.duration(220).easing(EASE);
 }

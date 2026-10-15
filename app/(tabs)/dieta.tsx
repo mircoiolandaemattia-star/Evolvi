@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -10,9 +10,13 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
+import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { ChevronLeft, ChevronRight, RefreshCw, Sparkles, UtensilsCrossed } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { Card } from "@/components/home/Card";
+import { CountUp } from "@/components/ui/CountUp";
+import { enterDown, useProgress } from "@/lib/anim";
 import { MacroProgressBar } from "@/components/dieta/MacroProgressBar";
 import { MealSection } from "@/components/dieta/MealSection";
 import { AddFoodModal, type FoodSource } from "@/components/dieta/AddFoodModal";
@@ -20,7 +24,7 @@ import { GenerateDietModal } from "@/components/dieta/GenerateDietModal";
 import { useIsStandalone } from "@/lib/useStandalone";
 import { isApiError } from "@/lib/api";
 import { useProfile } from "@/lib/profileQueries";
-import { addDays, dateToString, formatDayLabel, type MealType } from "@/lib/dietaStore";
+import { addDays, dateToString, formatDayLabel, MEAL_TYPES, type MealType } from "@/lib/dietaStore";
 import {
   useAddFoodItems,
   useDeleteFoodItem,
@@ -81,6 +85,24 @@ export default function DietaScreen() {
     name: string;
   } | null>(null);
 
+  // Aggiunta rapida dalla Home: il "+" della card "Pasti di oggi" arriva qui
+  // con ?addMeal=<tipo> e apre direttamente il modal del pasto giusto,
+  // espandendo la relativa sezione. Il parametro viene ripulito subito:
+  // serve solo ad aprire, non a rimanere (altrimenti un cambio data lo
+  // riaprirebbe).
+  const { addMeal } = useLocalSearchParams<{ addMeal?: string }>();
+  useEffect(() => {
+    if (!addMeal) return;
+    if (!(MEAL_TYPES as readonly string[]).includes(addMeal)) return;
+    /* eslint-disable react-hooks/set-state-in-effect -- il parametro arriva
+        dalla navigazione (sistema esterno): qui si reagisce aprendo il
+        modal del pasto richiesto e ripulendo il parametro. */
+    setAddMealType(addMeal as MealType);
+    setExpanded((prev) => ({ ...prev, [addMeal]: true }));
+    void router.setParams({ addMeal: undefined });
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [addMeal]);
+
   const dateStr = useMemo(() => dateToString(selectedDate), [selectedDate]);
   const dayLabel = useMemo(() => formatDayLabel(selectedDate), [selectedDate]);
 
@@ -104,6 +126,12 @@ export default function DietaScreen() {
   const targetProtein = profile?.protein_target_g ?? activePlan?.protein_g ?? 0;
   const targetCarbs = profile?.carbs_target_g ?? activePlan?.carbs_g ?? 0;
   const targetFats = profile?.fat_target_g ?? activePlan?.fat_g ?? 0;
+
+  // Barra calorie del riepilogo: scorre al nuovo valore quando si aggiunge
+  // o rimuove un alimento (come quelle dei macro sotto).
+  const calorieRatio = targetCalories > 0 ? Math.min(totals.calories / targetCalories, 1) : 0;
+  const calorieProgress = useProgress(calorieRatio);
+  const calorieBarStyle = useAnimatedStyle(() => ({ width: `${calorieProgress.value * 100}%` }));
 
   const isLoading = diary.isLoading || plansQuery.isLoading || profileQuery.isLoading;
   const isError = diary.isError || plansQuery.isError;
@@ -194,7 +222,7 @@ export default function DietaScreen() {
   }
 
   const planCard = activePlan ? (
-    <Card className="flex-row items-center gap-3 p-4">
+    <Card className="flex-row items-center gap-3 p-4" entering={enterDown(0)}>
       <View className="h-10 w-10 items-center justify-center rounded-xl bg-primary/15">
         <UtensilsCrossed size={18} color="#F97316" strokeWidth={2.2} />
       </View>
@@ -209,7 +237,7 @@ export default function DietaScreen() {
       </View>
     </Card>
   ) : (
-    <Card className="p-4">
+    <Card className="p-4" entering={enterDown(0)}>
       <Text className="font-inter-semibold text-sm text-foreground">Nessun piano dieta</Text>
       <Text className="mt-0.5 font-sans text-xs text-muted">
         I target qui sotto arrivano dal tuo profilo: puoi aggiungere i pasti anche senza un piano.
@@ -218,7 +246,7 @@ export default function DietaScreen() {
   );
 
   const macroCard = (
-    <Card className="gap-4">
+    <Card className="gap-4" entering={enterDown(130)}>
       <View className="flex-row items-center justify-between">
         <View className="flex-row items-center gap-2">
           <View className="h-9 w-9 items-center justify-center rounded-xl bg-primary/15">
@@ -227,16 +255,12 @@ export default function DietaScreen() {
           <Text className="font-inter-semibold text-sm text-foreground">Riepilogo giornaliero</Text>
         </View>
         <Text className="font-inter-bold text-sm text-foreground">
-          {Math.round(totals.calories)} / {targetCalories > 0 ? targetCalories : "—"} kcal
+          <CountUp value={totals.calories} className="font-inter-bold text-sm text-foreground" />
+          {` / ${targetCalories > 0 ? targetCalories : "—"} kcal`}
         </Text>
       </View>
       <View className="h-2 overflow-hidden rounded-full bg-background">
-        <View
-          className="h-2 rounded-full bg-primary"
-          style={{
-            width: `${targetCalories > 0 ? Math.min(100, Math.round((totals.calories / targetCalories) * 100)) : 0}%`,
-          }}
-        />
+        <Animated.View className="h-2 rounded-full bg-primary" style={calorieBarStyle} />
       </View>
       <View className="gap-3">
         <MacroProgressBar label="Proteine" current={totals.proteinG} target={targetProtein} color="#F97316" />
@@ -246,12 +270,13 @@ export default function DietaScreen() {
     </Card>
   );
 
-  function mealSection(meal: (typeof meals)[number]) {
+  function mealSection(meal: (typeof meals)[number], index: number) {
     return (
       <MealSection
         key={meal.id}
         meal={meal}
         expanded={Boolean(expanded[meal.type])}
+        enterDelay={260 + index * 100}
         onToggle={() => toggleMeal(meal.type as MealType)}
         onAdd={() => setAddMealType(meal.type as MealType)}
         onEditFood={(fid) => handleRequestEdit(meal.type as MealType, fid)}
@@ -261,7 +286,7 @@ export default function DietaScreen() {
     );
   }
 
-  const mealsList = <View className="gap-3">{meals.map(mealSection)}</View>;
+  const mealsList = <View className="gap-3">{meals.map((meal, index) => mealSection(meal, index))}</View>;
 
   const generateButton = !isReadOnly ? (
     <Pressable

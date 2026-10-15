@@ -40,7 +40,7 @@ export function WorkoutTodayCard({ day, session = null }: WorkoutTodayCardProps)
   }
 
   return (
-    <Card entering={enterDown(70)}>
+    <Card entering={enterDown(130)}>
       <View className="flex-row items-center gap-3">
         <View
           className={`h-11 w-11 items-center justify-center rounded-xl ${

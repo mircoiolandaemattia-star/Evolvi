@@ -1,11 +1,15 @@
 import { Pressable, Text, View } from "react-native";
+import Animated, { LinearTransition } from "react-native-reanimated";
 import { ChevronDown, ChevronUp, Pencil, Plus, Trash2, UtensilsCrossed } from "lucide-react-native";
 import type { Meal } from "@/types";
 import { Card } from "@/components/home/Card";
+import { expandIn, expandOut, enterDown, useMotionOff } from "@/lib/anim";
 
 type MealSectionProps = {
   meal: Meal;
   expanded: boolean;
+  /** Ritardo dell'entrata della card (ms), per la cascata della schermata. */
+  enterDelay?: number;
   onToggle: () => void;
   onAdd: () => void;
   onEditFood: (foodId: string) => void;
@@ -13,12 +17,22 @@ type MealSectionProps = {
   readOnly: boolean;
 };
 
-export function MealSection({ meal, expanded, onToggle, onAdd, onEditFood, onDeleteFood, readOnly }: MealSectionProps) {
+export function MealSection({
+  meal,
+  expanded,
+  enterDelay = 0,
+  onToggle,
+  onAdd,
+  onEditFood,
+  onDeleteFood,
+  readOnly,
+}: MealSectionProps) {
   const totalKcal = meal.foodItems.reduce((s, f) => s + f.calories, 0);
   const count = meal.foodItems.length;
+  const motionOff = useMotionOff();
 
   return (
-    <Card className="overflow-hidden p-0">
+    <Card className="overflow-hidden p-0" entering={enterDown(enterDelay)}>
       <Pressable
         onPress={onToggle}
         accessibilityRole="button"
@@ -64,13 +78,23 @@ export function MealSection({ meal, expanded, onToggle, onAdd, onEditFood, onDel
       </Pressable>
 
       {expanded ? (
-        <View className="border-t border-border px-4 pb-4 pt-2">
+        <Animated.View
+          entering={expandIn(motionOff)}
+          exiting={expandOut(motionOff)}
+          layout={LinearTransition}
+          className="border-t border-border px-4 pb-4 pt-2"
+        >
           {meal.foodItems.length === 0 ? (
             <Text className="py-3 text-center font-sans text-sm text-muted">Nessun alimento aggiunto</Text>
           ) : (
             <View className="gap-2">
-              {meal.foodItems.map((item) => (
-                <View key={item.id} className="flex-row items-center gap-3 rounded-xl border border-border bg-background/40 px-3 py-3">
+              {meal.foodItems.map((item, index) => (
+                <Animated.View
+                  key={item.id}
+                  entering={expandIn(motionOff, 40 + index * 45)}
+                  layout={LinearTransition}
+                  className="flex-row items-center gap-3 rounded-xl border border-border bg-background/40 px-3 py-3"
+                >
                   <View className="flex-1">
                     <Text className="font-inter-semibold text-sm text-foreground" numberOfLines={1}>
                       {item.name}
@@ -102,7 +126,7 @@ export function MealSection({ meal, expanded, onToggle, onAdd, onEditFood, onDel
                       </Pressable>
                     </View>
                   ) : null}
-                </View>
+                </Animated.View>
               ))}
             </View>
           )}
@@ -116,7 +140,7 @@ export function MealSection({ meal, expanded, onToggle, onAdd, onEditFood, onDel
               <Text className="font-inter-semibold text-sm text-muted">Aggiungi alimento</Text>
             </Pressable>
           ) : null}
-        </View>
+        </Animated.View>
       ) : null}
     </Card>
   );
