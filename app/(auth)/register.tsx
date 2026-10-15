@@ -4,6 +4,7 @@ import { Link, router } from "expo-router";
 import { Check, Mail, Lock, User } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { Logo } from "@/components/Logo";
+import { PressableScale, Reveal } from "@/lib/reveal";
 import { useAuth } from "@/lib/auth";
 import { AuthInput } from "@/components/auth/AuthInput";
 import { PasswordStrengthIndicator } from "@/components/auth/PasswordStrengthIndicator";
@@ -69,13 +70,13 @@ export default function RegisterScreen() {
   return (
     <Screen className="justify-center">
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} className="flex-1 justify-center px-6 py-6">
-        <View className="mb-8 items-center gap-4">
+        <Reveal delay={0} className="mb-8 items-center gap-4">
           <Logo size={80} />
           <Text className="font-inter-bold text-3xl text-foreground">Crea account</Text>
           <Text className="text-center font-sans text-sm text-muted">Unisciti a Evolvi in pochi secondi.</Text>
-        </View>
+        </Reveal>
 
-        <View className="gap-4">
+        <Reveal delay={140} className="gap-4">
           <View className="flex-row gap-3">
             <View className="flex-1">
               <AuthInput
@@ -153,14 +154,14 @@ export default function RegisterScreen() {
 
           {error ? <Text className="font-sans text-sm text-destructive">{error}</Text> : null}
 
-          <Pressable
+          <PressableScale
             onPress={handleRegister}
             disabled={!canSubmit}
             className={`mt-2 items-center rounded-xl py-3.5 active:opacity-80 ${canSubmit ? "bg-primary" : "bg-primary/40 opacity-60"}`}
           >
             <Text className="font-inter-bold text-base text-primary-foreground">{submitting ? "Creazione…" : "Registrati"}</Text>
-          </Pressable>
-        </View>
+          </PressableScale>
+        </Reveal>
 
         <View className="mt-8 flex-row items-center justify-center gap-1">
           <Text className="font-sans text-sm text-muted">Hai già un account?</Text>

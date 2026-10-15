@@ -1,6 +1,7 @@
 import { Text, View } from "react-native";
 import { Flame } from "lucide-react-native";
 import { Card } from "@/components/home/Card";
+import { CountUp } from "@/components/ui/CountUp";
 import { parseStoredBirthDate } from "@/lib/profileQueries";
 import { computeTargets } from "@/src/api/lib/tdee";
 
@@ -42,7 +43,9 @@ export function TdeeCard({ birthDate, gender, heightCm, weightKg, goal, activity
         <View className="flex-1">
           <Text className="font-sans text-xs text-muted">Fabbisogno giornaliero</Text>
           {targets ? (
-            <Text className="font-inter-bold text-2xl text-primary">{targets.daily_calorie_target} kcal</Text>
+            <Text className="font-inter-bold text-2xl text-primary">
+              <CountUp value={targets.daily_calorie_target} /> kcal
+            </Text>
           ) : (
             <Text className="font-inter-semibold text-sm leading-5 text-muted">
               Completa peso, altezza e data di nascita per vederlo

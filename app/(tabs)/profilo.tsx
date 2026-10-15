@@ -9,11 +9,10 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
-import Animated from "react-native-reanimated";
 import { LogOut } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { Card } from "@/components/home/Card";
-import { enterDown } from "@/lib/anim";
+import { PressableScale, Reveal } from "@/lib/reveal";
 import { PersonalDataCard, type PersonalData } from "@/components/profilo/PersonalDataCard";
 import { GoalSelector } from "@/components/profilo/GoalSelector";
 import { ActivityLevelSelector } from "@/components/profilo/ActivityLevelSelector";
@@ -318,12 +317,12 @@ export default function ProfiloScreen() {
 
   const leftColumn = (
     <View className="gap-4">
-      <Animated.View entering={enterDown(0)}>
+      <Reveal delay={0}>
         <PersonalDataCard data={personalData} readOnly={isReadOnly} onSave={handlePersonalSave} />
-      </Animated.View>
+      </Reveal>
       {/* Sopra entrambi i selettori: è il numero che l'utente va a cercare
           per confrontarlo con la Home. Prima era dentro ciascuno dei due. */}
-      <Animated.View entering={enterDown(130)}>
+      <Reveal delay={130}>
         <TdeeCard
           birthDate={profile?.birth_date ?? null}
           gender={profile?.gender ?? null}
@@ -332,19 +331,19 @@ export default function ProfiloScreen() {
           goal={profile?.goal ?? "maintain"}
           activityLevel={profile?.activity_level ?? "sedentary"}
         />
-      </Animated.View>
-      <Animated.View entering={enterDown(260)}>
+      </Reveal>
+      <Reveal delay={260}>
         <GoalSelector value={serverGoal} readOnly={isReadOnly} onChange={handleGoalChange} />
-      </Animated.View>
-      <Animated.View entering={enterDown(390)}>
+      </Reveal>
+      <Reveal delay={390}>
         <ActivityLevelSelector value={serverActivity} readOnly={isReadOnly} onChange={handleActivityChange} />
-      </Animated.View>
+      </Reveal>
     </View>
   );
 
   const rightColumn = (
     <View className="gap-4">
-      <Animated.View entering={enterDown(130)}>
+      <Reveal delay={130}>
         <SettingsCard
           readOnly={isReadOnly}
           enabled={notifEnabled}
@@ -353,8 +352,8 @@ export default function ProfiloScreen() {
           reduceMotion={reduceMotion}
           onReduceMotionChange={(value) => void setReduceMotion(value)}
         />
-      </Animated.View>
-      <Animated.View entering={enterDown(260)}>
+      </Reveal>
+      <Reveal delay={260}>
         <ReminderCard
           reminders={reminders}
           readOnly={isReadOnly}
@@ -362,8 +361,8 @@ export default function ProfiloScreen() {
           onDelete={handleReminderDelete}
           onAdd={() => setShowAddReminder(true)}
         />
-      </Animated.View>
-      <Animated.View entering={enterDown(390)}>
+      </Reveal>
+      <Reveal delay={390}>
         <SubscriptionCard
           state={subState}
           trialEndsAt={profile?.subscription_expires_at ?? null}
@@ -373,11 +372,14 @@ export default function ProfiloScreen() {
           onConfirm={handleConfirm}
           onManage={handleManage}
         />
-      </Animated.View>
-      <Pressable onPress={handleLogout} className="flex-row items-center justify-center gap-2 rounded-xl border border-destructive/30 bg-destructive/10 py-3.5 active:opacity-80">
+      </Reveal>
+      <PressableScale
+        onPress={handleLogout}
+        className="flex-row items-center justify-center gap-2 rounded-xl border border-destructive/30 bg-destructive/10 py-3.5 active:opacity-80"
+      >
         <LogOut size={16} color="#EF4444" strokeWidth={2.2} />
         <Text className="font-inter-semibold text-sm text-destructive">Logout</Text>
-      </Pressable>
+      </PressableScale>
       {isReadOnly ? <Text className="text-center font-sans text-xs text-muted">Sola lettura su browser — installa la PWA per modificare</Text> : null}
     </View>
   );
@@ -399,7 +401,7 @@ export default function ProfiloScreen() {
       >
         <Text className="font-inter-bold text-3xl text-foreground">Profilo</Text>
 
-        <Card className="gap-2" entering={enterDown(0)}>{header}</Card>
+        <Card className="gap-2" delay={0}>{header}</Card>
 
         {saveErrorBanner}
 

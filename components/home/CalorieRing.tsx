@@ -3,7 +3,7 @@ import Svg, { Circle } from "react-native-svg";
 import Animated, { useAnimatedProps } from "react-native-reanimated";
 import { Card } from "./Card";
 import { CountUp } from "@/components/ui/CountUp";
-import { IS_NATIVE, enterDown, useProgress } from "@/lib/anim";
+import { IS_NATIVE, useProgress } from "@/lib/anim";
 
 type CalorieRingProps = {
   consumed: number;
@@ -44,7 +44,7 @@ export function CalorieRing({ consumed, target }: CalorieRingProps) {
   }));
 
   return (
-    <Card entering={enterDown(0)}>
+    <Card delay={0}>
       <Text className="font-inter-semibold text-base text-foreground">Calorie di oggi</Text>
 
       <View className="mt-4 items-center">

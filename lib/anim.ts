@@ -13,6 +13,7 @@ import {
   type SharedValue,
 } from "react-native-reanimated";
 import { useReduceMotionSetting } from "./motionSettings";
+import { useRevealEpoch } from "./reveal";
 
 /**
  * Micro-animazioni condivise (Reanimated + contatori).
@@ -21,13 +22,17 @@ import { useReduceMotionSetting } from "./motionSettings";
  * - `useCountUp` / `<CountUp>`: numeri che "contano" fino al valore. Il loop
  *   gira su `requestAnimationFrame` nel JS thread e vive dentro il piccolo
  *   componente che renderizza il testo, così le rirenderi restano locali.
- * - `useProgress` / `enterDown`: barre, ring e entrate delle card, animati
+ * - `useProgress`: barre, ring e altre progressioni, animate
  *   sul UI thread da Reanimated.
  *
  * Ogni animazione rispetta il "riduci movimento", che può venire da due
  * posti: l'impostazione di sistema (letta da Reanimated) e quella in-app
  * in Profilo (`lib/motionSettings.ts`). Con uno dei due attivo i valori
  * arrivano subito al target, senza transizioni.
+ *
+ * `useProgress` e `useCountUp` inoltre si **riepilogano a ogni focus**
+ * dello schermo (epoch di `lib/reveal.tsx`), così tornando su una tab il
+ * riempimento del ring e i numeri ricominciano e si rivedono.
  */
 
 /** Durata tipica delle micro-animazioni (ms). */
@@ -77,13 +82,18 @@ export function useMotionOff(): boolean {
 export function useCountUp(target: number, options: TimingOptions = {}): number {
   const { duration = ANIM_DURATION, delay = 0 } = options;
   const motionOff = useMotionOff();
+  const epoch = useRevealEpoch();
   const [value, setValue] = useState(0);
   const fromRef = useRef(0);
 
   useEffect(() => {
-    const from = fromRef.current;
-    // Nessun cambio (o partenza già sul target): niente loop.
-    if (from === target) return;
+    // Ritorno su una tab (epoch > 0): il conteggio riparte da 0 così si
+    // rivede "risalire". Al mount epoch è 0 e si parte dal valore corrente.
+    const from = epoch === 0 ? fromRef.current : 0;
+    if (epoch !== 0) fromRef.current = 0;
+
+    // Nessun cambio (o partenza già sul target, al primo mount): niente loop.
+    if (from === target && epoch === 0) return;
 
     // Con "riduci movimento" si salta direttamente al valore finale.
     const totalDuration = motionOff ? 0 : duration;
@@ -106,7 +116,7 @@ export function useCountUp(target: number, options: TimingOptions = {}): number 
 
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [target, duration, delay, motionOff]);
+  }, [target, duration, delay, motionOff, epoch]);
 
   return value;
 }
@@ -117,11 +127,13 @@ export function useCountUp(target: number, options: TimingOptions = {}): number 
  *
  * Al primo render parte da 0: così il ring "cresce" quando la card compare.
  * Sui valori già noti non c'è nessun salto: l'effetto parte dal valore
- * corrente della shared value.
+ * corrente della shared value. Quando si torna sulla tab (epoch cambia)
+ * la barra riparte da 0 e si rivede riempirsi.
  */
 export function useProgress(ratio: number, options: TimingOptions = {}): SharedValue<number> {
   const { duration = ANIM_DURATION, delay = 0 } = options;
   const motionOff = useMotionOff();
+  const epoch = useRevealEpoch();
   const target = clamp01(ratio);
   const progress = useSharedValue(0);
 
@@ -131,33 +143,14 @@ export function useProgress(ratio: number, options: TimingOptions = {}): SharedV
       progress.value = target;
       return;
     }
+    // Ritorno su una tab: riparte da 0 per far rivedere il riempimento.
+    if (epoch !== 0) progress.value = 0;
     // Reanimated 4 non accetta `delay` in `withTiming`: il ritardo va da `withDelay`.
     const animated = withTiming(target, { duration, easing: EASE });
     progress.value = delay > 0 ? withDelay(delay, animated) : animated;
-  }, [target, duration, delay, motionOff, progress]);
+  }, [target, duration, delay, motionOff, progress, epoch]);
 
   return progress;
-}
-
-/**
- * Entrata morbida "scaglionata" per le card di una schermata:
- * `entering={enterDown(120)}` — fade + discesa lenta (750ms), così la
- * cascata si vede mentre si guarda lo schermo.
- *
- * Restituisce `undefined` sul web: le animazioni di layout lì sono omesse
- * per non rischiare elementi invisibili nel PWA, che resta statico e leggibile.
- */
-export function enterDown(delayMs = 0): EntryOrExitLayoutType | undefined {
-  if (!IS_NATIVE) return undefined;
-  return FadeInDown.delay(delayMs).duration(ENTER_DURATION).easing(EASE);
-}
-
-/**
- * Cascata scaglionata per N card: `cards.map((c, i) => <Card entering={enterStagger(i)} …>)`.
- * `step` è lo scarto tra una card e la successiva (default 130ms).
- */
-export function enterStagger(index: number, step = 130): EntryOrExitLayoutType | undefined {
-  return enterDown(index * step);
 }
 
 /**

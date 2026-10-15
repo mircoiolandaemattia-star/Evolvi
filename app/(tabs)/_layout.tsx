@@ -1,7 +1,16 @@
 import { Platform, StyleSheet, type ColorValue } from "react-native";
+import { useEffect, useRef } from "react";
 import { Tabs } from "expo-router";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Animated, {
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withSpring,
+  withTiming,
+  Easing,
+} from "react-native-reanimated";
 import {
   Dumbbell,
   Home,
@@ -10,6 +19,7 @@ import {
   UtensilsCrossed,
   type LucideIcon,
 } from "lucide-react-native";
+import { useReduceMotionSetting } from "@/lib/motionSettings";
 
 /**
  * Tab bar per piattaforma:
@@ -62,11 +72,55 @@ const TAB_BAR_HEIGHT = 54;
 
 type TabIconProps = { focused: boolean; color: ColorValue; size: number };
 
-/** Render prop `tabBarIcon` a identità stabile (definita a livello di modulo). */
+/**
+ * Render prop `tabBarIcon` a identità stabile (definita a livello di modulo).
+ *
+ * L'icona fa un piccolo "pop" (rimpicciolisce e torna su con uno spring)
+ * quando la tab diventa attiva: dà conferma tattile del cambio, visibile
+ * **ogni** volta che si tocca la tab. Rispetta il "riduci movimento".
+ */
 const renderTabIcon = (Icon: LucideIcon) => {
   /** Componente con nome: `react/display-name` lo riconosce nei devtools. */
-  function TabIcon({ color, size }: TabIconProps) {
-    return <Icon size={size} color={color as string} strokeWidth={ICON_STROKE} />;
+  function TabIcon({ color, size, focused }: TabIconProps) {
+    const systemReduced = useReducedMotion();
+    const appReduced = useReduceMotionSetting();
+    const motionOff = systemReduced || appReduced;
+
+    // Valore iniziale coerente con lo stato corrente: così l'icona non
+    // parte grande e non "scatta" al primo render.
+    const scale = useSharedValue(focused ? 1 : 0.92);
+    const bump = useSharedValue(1);
+    const firstRun = useRef(true);
+
+    useEffect(() => {
+      // Il primo effetto (mount) non fa il "pop": serve solo ad allineare
+      // lo stato senza rimbalzo. Il pop scatta sui cambi di selezione.
+      if (motionOff) {
+        scale.value = focused ? 1 : 0.92;
+        bump.value = 1;
+        firstRun.current = false;
+        return;
+      }
+      scale.value = withSpring(focused ? 1 : 0.92, { damping: 14, stiffness: 220 });
+      if (firstRun.current) {
+        firstRun.current = false;
+      } else if (focused) {
+        bump.value = 0.82;
+        bump.value = withSpring(1, { damping: 11, stiffness: 260 });
+      } else {
+        bump.value = withTiming(1, { duration: 120, easing: Easing.out(Easing.quad) });
+      }
+    }, [focused, motionOff, scale, bump]);
+
+    const style = useAnimatedStyle(() => ({
+      transform: [{ scale: scale.value * bump.value }],
+    }));
+
+    return (
+      <Animated.View style={style}>
+        <Icon size={size} color={color as string} strokeWidth={ICON_STROKE} />
+      </Animated.View>
+    );
   }
   return TabIcon;
 };

@@ -4,6 +4,7 @@ import { Link, router } from "expo-router";
 import { Mail, Lock } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { Logo } from "@/components/Logo";
+import { PressableScale, Reveal } from "@/lib/reveal";
 import { useAuth } from "@/lib/auth";
 import { notify } from "@/lib/feedback";
 import { AuthInput } from "@/components/auth/AuthInput";
@@ -53,13 +54,13 @@ export default function LoginScreen() {
   return (
     <Screen className="justify-center">
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} className="flex-1 justify-center px-6">
-        <View className="mb-10 items-center gap-4">
+        <Reveal delay={0} className="mb-10 items-center gap-4">
           <Logo size={88} />
           <Text className="font-inter-bold text-4xl text-foreground">Evolvi</Text>
           <Text className="text-center font-sans text-base text-muted">Monitora allenamenti, dieta e progressi.</Text>
-        </View>
+        </Reveal>
 
-        <View className="gap-4">
+        <Reveal delay={140} className="gap-4">
           <AuthInput
             icon={<Mail size={16} color="#94A3B8" />}
             placeholder="Email"
@@ -90,18 +91,18 @@ export default function LoginScreen() {
 
           {error ? <Text className="font-sans text-sm text-destructive">{error}</Text> : null}
 
-          <Pressable
+          <PressableScale
             onPress={handleLogin}
             disabled={submitting}
             className={`mt-2 items-center rounded-xl bg-primary py-3.5 active:opacity-80 ${submitting ? "opacity-50" : ""}`}
           >
             <Text className="font-inter-bold text-base text-primary-foreground">{submitting ? "Accesso…" : "Accedi"}</Text>
-          </Pressable>
+          </PressableScale>
 
           <Pressable onPress={() => notify("Password dimenticata", "Funzionalità in arrivo. Contatta il supporto per reimpostare la password.")} className="items-center py-2 active:opacity-60">
             <Text className="font-inter-semibold text-sm text-primary">Password dimenticata?</Text>
           </Pressable>
-        </View>
+        </Reveal>
 
         <View className="mt-6 flex-row items-center justify-center gap-1">
           <Text className="font-sans text-sm text-muted">Non hai un account?</Text>

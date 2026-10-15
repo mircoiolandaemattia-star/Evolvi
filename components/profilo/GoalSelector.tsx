@@ -1,5 +1,6 @@
 import { Pressable, Text, View } from "react-native";
 import { Card } from "@/components/home/Card";
+import { RadioDot } from "@/lib/reveal";
 import { GOAL_OPTIONS, type Goal } from "@/lib/calorieCalculator";
 
 type Props = {
@@ -33,9 +34,7 @@ export function GoalSelector({ value, readOnly = false, onChange }: Props) {
                   <Text className={`font-inter-semibold text-sm ${active ? "text-primary" : "text-foreground"}`}>{o.label}</Text>
                   <Text className="font-sans text-xs leading-4 text-muted">{o.description}</Text>
                 </View>
-                <View className={`h-6 w-6 items-center justify-center rounded-full border-2 ${active ? "border-primary bg-primary" : "border-border"}`}>
-                  {active ? <View className="h-2.5 w-2.5 rounded-full bg-white" /> : null}
-                </View>
+                <RadioDot selected={active} size={24} color="#F97316" />
               </View>
             </Pressable>
           );

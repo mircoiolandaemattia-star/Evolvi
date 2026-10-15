@@ -2,7 +2,6 @@ import { View, Text } from "react-native";
 import { Clock, Dumbbell, Flame } from "lucide-react-native";
 import type { QuickStats as QuickStatsData } from "@/lib/mock-data";
 import { CountUp } from "@/components/ui/CountUp";
-import { enterDown } from "@/lib/anim";
 import { Card } from "./Card";
 
 type QuickStatsProps = {
@@ -41,7 +40,7 @@ function StatItem({
  */
 export function QuickStats({ stats }: QuickStatsProps) {
   return (
-    <Card entering={enterDown(390)}>
+    <Card delay={390}>
       <Text className="font-inter-semibold text-base text-foreground">Statistiche</Text>
       <View className="mt-4 flex-row gap-2">
         <StatItem

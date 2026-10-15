@@ -1,4 +1,11 @@
+import { useEffect } from "react";
 import { Text, View } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
+import { useMotionOff } from "@/lib/reveal";
 
 type Strength = "debole" | "media" | "forte";
 
@@ -34,16 +41,41 @@ export function PasswordStrengthIndicator({ password }: { password: string }) {
     <View className="gap-1.5">
       <View className="flex-row gap-1.5">
         {[1, 2, 3].map((i) => (
-          <View
-            key={i}
-            className="h-1.5 flex-1 rounded-full"
-            style={{ backgroundColor: i <= score ? COLOR[level] : "#334155" }}
-          />
+          <StrengthSegment key={i} active={i <= score} color={COLOR[level]} />
         ))}
       </View>
       <Text className="font-sans text-xs" style={{ color: COLOR[level] }}>
         Password {LABEL[level]}
       </Text>
+    </View>
+  );
+}
+
+/**
+ * Singolo segmento della barra: quando diventa attivo il riempimento
+ * cresce da sinistra (spring), invece di apparire di colpo.
+ */
+function StrengthSegment({ active, color }: { active: boolean; color: string }) {
+  const motionOff = useMotionOff();
+  const fill = useSharedValue(active ? 1 : 0);
+
+  useEffect(() => {
+    if (motionOff) {
+      fill.value = active ? 1 : 0;
+      return;
+    }
+    fill.value = withSpring(active ? 1 : 0, { damping: 16, stiffness: 220 });
+  }, [active, motionOff, fill]);
+
+  const fillStyle = useAnimatedStyle(() => ({
+    width: `${fill.value * 100}%`,
+  }));
+
+  return (
+    <View className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#334155]">
+      <Animated.View
+        style={[{ height: "100%", borderRadius: 999, backgroundColor: color }, fillStyle]}
+      />
     </View>
   );
 }

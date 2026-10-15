@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import { router } from "expo-router";
 import { Screen } from "@/components/Screen";
+import { PressableScale, Reveal } from "@/lib/reveal";
 import { useAuth } from "@/lib/auth";
 import { isApiError } from "@/lib/api";
 import {
@@ -133,20 +134,23 @@ export default function OnboardingScreen() {
         <OnboardingProgressBar current={step} total={TOTAL} />
 
         <ScrollView className="flex-1" contentContainerClassName="py-6" showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          {step === 1 ? <PersonalDataStep value={personal} onChange={setPersonal} /> : null}
-          {step === 2 ? <GoalStep value={goal} onChange={setGoal} /> : null}
-          {step === 3 ? <ActivityStep value={activity} onChange={setActivity} /> : null}
-          {step === 4 ? <DisclaimerStep accepted={accepted} onToggle={setAccepted} /> : null}
-          {step === 5 && tdeeData.birthDate ? (
-            <SummaryStep
-              weight={tdeeData.w}
-              height={tdeeData.h}
-              birthDate={tdeeData.birthDate}
-              gender={personal.gender}
-              activity={activity}
-              goal={goal}
-            />
-          ) : null}
+          {/* `key={step}` forza il remount: ogni passo rientra con fade+salita. */}
+          <Reveal key={step} delay={40} distance={16}>
+            {step === 1 ? <PersonalDataStep value={personal} onChange={setPersonal} /> : null}
+            {step === 2 ? <GoalStep value={goal} onChange={setGoal} /> : null}
+            {step === 3 ? <ActivityStep value={activity} onChange={setActivity} /> : null}
+            {step === 4 ? <DisclaimerStep accepted={accepted} onToggle={setAccepted} /> : null}
+            {step === 5 && tdeeData.birthDate ? (
+              <SummaryStep
+                weight={tdeeData.w}
+                height={tdeeData.h}
+                birthDate={tdeeData.birthDate}
+                gender={personal.gender}
+                activity={activity}
+                goal={goal}
+              />
+            ) : null}
+          </Reveal>
         </ScrollView>
 
         {saveError ? (
@@ -155,23 +159,23 @@ export default function OnboardingScreen() {
 
         <View className="flex-row gap-3 pb-8 pt-2">
           {step > 1 ? (
-            <Pressable onPress={() => setStep((s) => Math.max(1, s - 1))} className="flex-1 items-center rounded-xl border border-border bg-surface py-3.5 active:opacity-80">
+            <PressableScale onPress={() => setStep((s) => Math.max(1, s - 1))} className="flex-1 items-center rounded-xl border border-border bg-surface py-3.5 active:opacity-80">
               <Text className="font-inter-semibold text-base text-muted">Indietro</Text>
-            </Pressable>
+            </PressableScale>
           ) : null}
 
           {step < 5 ? (
-            <Pressable
+            <PressableScale
               onPress={() => setStep((s) => Math.min(TOTAL, s + 1))}
               disabled={!canNext}
               className={`flex-1 items-center rounded-xl py-3.5 active:opacity-80 ${canNext ? "bg-primary" : "bg-primary/40 opacity-60"}`}
             >
               <Text className="font-inter-bold text-base text-primary-foreground">Avanti</Text>
-            </Pressable>
+            </PressableScale>
           ) : (
-            <Pressable onPress={handleFinish} disabled={saving} className={`flex-1 items-center rounded-xl bg-primary py-3.5 active:opacity-80 ${saving ? "opacity-60" : ""}`}>
+            <PressableScale onPress={handleFinish} disabled={saving} className={`flex-1 items-center rounded-xl bg-primary py-3.5 active:opacity-80 ${saving ? "opacity-60" : ""}`}>
               <Text className="font-inter-bold text-base text-primary-foreground">{saving ? "Salvataggio…" : "Inizia"}</Text>
-            </Pressable>
+            </PressableScale>
           )}
         </View>
       </View>

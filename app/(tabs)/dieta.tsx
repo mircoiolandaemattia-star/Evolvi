@@ -16,7 +16,7 @@ import { ChevronLeft, ChevronRight, RefreshCw, Sparkles, UtensilsCrossed } from 
 import { Screen } from "@/components/Screen";
 import { Card } from "@/components/home/Card";
 import { CountUp } from "@/components/ui/CountUp";
-import { enterDown, useProgress } from "@/lib/anim";
+import { useProgress } from "@/lib/anim";
 import { MacroProgressBar } from "@/components/dieta/MacroProgressBar";
 import { MealSection } from "@/components/dieta/MealSection";
 import { AddFoodModal, type FoodSource } from "@/components/dieta/AddFoodModal";
@@ -222,7 +222,7 @@ export default function DietaScreen() {
   }
 
   const planCard = activePlan ? (
-    <Card className="flex-row items-center gap-3 p-4" entering={enterDown(0)}>
+    <Card className="flex-row items-center gap-3 p-4" delay={0}>
       <View className="h-10 w-10 items-center justify-center rounded-xl bg-primary/15">
         <UtensilsCrossed size={18} color="#F97316" strokeWidth={2.2} />
       </View>
@@ -237,7 +237,7 @@ export default function DietaScreen() {
       </View>
     </Card>
   ) : (
-    <Card className="p-4" entering={enterDown(0)}>
+    <Card className="p-4" delay={0}>
       <Text className="font-inter-semibold text-sm text-foreground">Nessun piano dieta</Text>
       <Text className="mt-0.5 font-sans text-xs text-muted">
         I target qui sotto arrivano dal tuo profilo: puoi aggiungere i pasti anche senza un piano.
@@ -246,7 +246,7 @@ export default function DietaScreen() {
   );
 
   const macroCard = (
-    <Card className="gap-4" entering={enterDown(130)}>
+    <Card className="gap-4" delay={130}>
       <View className="flex-row items-center justify-between">
         <View className="flex-row items-center gap-2">
           <View className="h-9 w-9 items-center justify-center rounded-xl bg-primary/15">

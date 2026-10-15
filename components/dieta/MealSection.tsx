@@ -1,9 +1,10 @@
 import { Pressable, Text, View } from "react-native";
 import Animated, { LinearTransition } from "react-native-reanimated";
-import { ChevronDown, ChevronUp, Pencil, Plus, Trash2, UtensilsCrossed } from "lucide-react-native";
+import { Pencil, Plus, Trash2, UtensilsCrossed } from "lucide-react-native";
 import type { Meal } from "@/types";
 import { Card } from "@/components/home/Card";
-import { expandIn, expandOut, enterDown, useMotionOff } from "@/lib/anim";
+import { expandIn, expandOut, useMotionOff } from "@/lib/anim";
+import { RotatingChevron } from "@/lib/reveal";
 
 type MealSectionProps = {
   meal: Meal;
@@ -32,7 +33,7 @@ export function MealSection({
   const motionOff = useMotionOff();
 
   return (
-    <Card className="overflow-hidden p-0" entering={enterDown(enterDelay)}>
+    <Card className="overflow-hidden p-0" delay={enterDelay}>
       <Pressable
         onPress={onToggle}
         accessibilityRole="button"
@@ -72,7 +73,7 @@ export function MealSection({
             </Pressable>
           ) : null}
           <View className="ml-1">
-            {expanded ? <ChevronUp size={18} color="#94A3B8" strokeWidth={2.2} /> : <ChevronDown size={18} color="#94A3B8" strokeWidth={2.2} />}
+            <RotatingChevron expanded={expanded} size={18} />
           </View>
         </View>
       </Pressable>

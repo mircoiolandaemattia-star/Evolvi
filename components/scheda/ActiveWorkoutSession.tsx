@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { router } from "expo-router";
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import {
   ArrowLeftRight,
   Check,
@@ -41,6 +42,8 @@ import {
   markWorkoutCompleted,
   useCreateWorkoutSession,
 } from "@/lib/workoutQueries";
+import { useProgress } from "@/lib/anim";
+import { useMotionOff } from "@/lib/reveal";
 import { NumberField, PrimaryButton } from "./formControls";
 import { ReplaceExerciseModal } from "./ReplaceExerciseModal";
 
@@ -200,6 +203,11 @@ export function ActiveWorkoutSession({ day, autoResume = false }: ActiveWorkoutS
     0,
   );
   const progress = totalSets === 0 ? 0 : Math.min(1, completedSets / totalSets);
+  // Barra di avanzamento animata: scorre al nuovo valore invece di scattare.
+  const progressAnim = useProgress(progress, { duration: 450 });
+  const progressFillStyle = useAnimatedStyle(() => ({
+    width: `${progressAnim.value * 100}%`,
+  }));
 
   /* --------------------------- Avvio e ripresa --------------------------- */
 
@@ -638,9 +646,9 @@ export function ActiveWorkoutSession({ day, autoResume = false }: ActiveWorkoutS
 
         {/* Progress bar (sulle serie, non sul singolo esercizio) */}
         <View className="h-2 w-full overflow-hidden rounded-full bg-surface">
-          <View
+          <Animated.View
             className="h-full rounded-full bg-primary"
-            style={{ width: `${progress * 100}%` }}
+            style={progressFillStyle}
           />
         </View>
 
@@ -781,20 +789,12 @@ export function ActiveWorkoutSession({ day, autoResume = false }: ActiveWorkoutS
                         }`}
                       >
                         <View className="flex-row items-center gap-3">
-                          {/* Checkbox completa serie */}
-                          <Pressable
-                            onPress={() => handleToggleSet(setIndex)}
-                            accessibilityRole="checkbox"
-                            accessibilityLabel={`Serie ${setIndex + 1} completata`}
-                            accessibilityState={{ checked: isSetDone }}
-                            className={`h-11 w-11 cursor-pointer items-center justify-center rounded-full border-2 ${
-                              isSetDone ? "border-accent bg-accent" : "border-border bg-surface"
-                            }`}
-                          >
-                            {isSetDone ? (
-                              <Check size={20} color="#0F172A" strokeWidth={3} />
-                            ) : null}
-                          </Pressable>
+                          {/* Checkbox completa serie: "pop" spring quando completata */}
+                          <SetCheckbox
+                            checked={isSetDone}
+                            onToggle={() => handleToggleSet(setIndex)}
+                            label={`Serie ${setIndex + 1} completata`}
+                          />
 
                           <Text className="w-14 font-inter-semibold text-sm text-muted">
                             Serie {setIndex + 1}
@@ -993,5 +993,52 @@ function ExerciseEditPanel({
         </Pressable>
       </View>
     </View>
+  );
+}
+
+/**
+ * Checkbox di una serie: al completamento la spunta "scatta" con uno spring
+ * (rimpicciolisce e torna su) invece di apparire di colpo. Rispetta il
+ * "riduci movimento", dove la spunta compare senza rimbalzo.
+ */
+function SetCheckbox({
+  checked,
+  onToggle,
+  label,
+}: {
+  checked: boolean;
+  onToggle: () => void;
+  label: string;
+}) {
+  const motionOff = useMotionOff();
+  const pop = useSharedValue(checked ? 1 : 0);
+
+  useEffect(() => {
+    if (motionOff) {
+      pop.value = checked ? 1 : 0;
+      return;
+    }
+    pop.value = withSpring(checked ? 1 : 0, { damping: 11, stiffness: 280 });
+  }, [checked, motionOff, pop]);
+
+  const iconStyle = useAnimatedStyle(() => ({
+    opacity: pop.value,
+    transform: [{ scale: 0.6 + pop.value * 0.4 }],
+  }));
+
+  return (
+    <Pressable
+      onPress={onToggle}
+      accessibilityRole="checkbox"
+      accessibilityLabel={label}
+      accessibilityState={{ checked }}
+      className={`h-11 w-11 cursor-pointer items-center justify-center rounded-full border-2 ${
+        checked ? "border-accent bg-accent" : "border-border bg-surface"
+      }`}
+    >
+      <Animated.View style={iconStyle}>
+        <Check size={20} color="#0F172A" strokeWidth={3} />
+      </Animated.View>
+    </Pressable>
   );
 }

@@ -3,7 +3,7 @@ import { router } from "expo-router";
 import { Plus, UtensilsCrossed } from "lucide-react-native";
 import type { Meal } from "@/types";
 import { suggestedMealType } from "@/lib/dietaStore";
-import { enterDown } from "@/lib/anim";
+import { PressableScale } from "@/lib/reveal";
 import { Card } from "./Card";
 
 type MealsSummaryCardProps = {
@@ -26,7 +26,7 @@ export function MealsSummaryCard({ meals }: MealsSummaryCardProps) {
   }
 
   return (
-    <Card entering={enterDown(260)}>
+    <Card delay={260}>
       <View className="flex-row items-center justify-between">
         <View className="flex-row items-center gap-3">
           <View className="h-11 w-11 items-center justify-center rounded-xl bg-accent/15">
@@ -35,15 +35,16 @@ export function MealsSummaryCard({ meals }: MealsSummaryCardProps) {
           <Text className="font-inter-semibold text-base text-foreground">Pasti di oggi</Text>
         </View>
 
-        <Pressable
+        <PressableScale
           onPress={openAddMeal}
           accessibilityRole="button"
           accessibilityLabel="Aggiungi un pasto"
           hitSlop={8}
+          scaleTo={0.88}
           className="h-11 w-11 items-center justify-center rounded-xl bg-primary/15 active:opacity-80 cursor-pointer"
         >
           <Plus size={22} color="#F97316" strokeWidth={2.5} />
-        </Pressable>
+        </PressableScale>
       </View>
 
       {meals.length === 0 ? (

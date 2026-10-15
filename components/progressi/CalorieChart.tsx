@@ -1,7 +1,17 @@
 import { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
+import Animated, {
+  useAnimatedProps,
+  useDerivedValue,
+  withTiming,
+  Easing,
+  type SharedValue,
+} from "react-native-reanimated";
 import Svg, { Line, Rect, Text as SvgText } from "react-native-svg";
 import type { CaloriePoint } from "@/lib/progressQueries";
+import { useRevealProgress } from "@/lib/reveal";
+
+const AnimatedRect = Animated.createAnimatedComponent(Rect);
 
 type Props = {
   average: number;
@@ -16,6 +26,11 @@ export function CalorieChart({ average, target, days }: Props) {
   const padR = 12;
   const padT = 12;
   const padB = 28;
+
+  // Corsa comune di crescita delle barre: 0→1, riparte a ogni focus della tab.
+  // Va dichiarata prima dell'early return per rispettare le Rules of Hooks.
+  const grow = useRevealProgress(120, 700);
+
   // Usa larghezza misurata; fallback 320 per primo render
   const measuredW = containerW > 0 ? containerW : 320;
   // Per 30gg le barre diventano troppo strette: garantisci min 10px per barra + gap
@@ -68,13 +83,24 @@ export function CalorieChart({ average, target, days }: Props) {
             {target}
           </SvgText>
 
-          {/* bars */}
+          {/* bars: crescono dal basso con un micro-ritardo scaglionato */}
           {days.map((d, i) => {
             const barH = ((d.calories - minCal) / range) * plotH;
             const x = padL + i * (barW + barGap);
-            const y = padT + plotH - barH;
+            const baseline = padT + plotH;
             const over = d.calories > target;
-            return <Rect key={d.date} x={x} y={y} width={barW} height={barH} rx={3} fill={over ? "#EF4444" : "#22C55E"} />;
+            return (
+              <AnimatedBar
+                key={d.date}
+                x={x}
+                barH={barH}
+                baseline={baseline}
+                barW={barW}
+                fill={over ? "#EF4444" : "#22C55E"}
+                grow={grow}
+                start={(i / Math.max(1, days.length - 1)) * 0.6}
+              />
+            );
           })}
 
           {/* X labels subset */}
@@ -108,5 +134,44 @@ export function CalorieChart({ average, target, days }: Props) {
         </View>
       </View>
     </View>
+  );
+}
+
+/**
+ * Una singola barra: cresce in altezza dal basso appena la "corsa" comune
+ * (`grow`, un valore 0→1 condiviso da tutta la scheda) supera `start`.
+ */
+function AnimatedBar({
+  x,
+  barH,
+  baseline,
+  barW,
+  fill,
+  grow,
+  start,
+}: {
+  x: number;
+  barH: number;
+  baseline: number;
+  barW: number;
+  fill: string;
+  grow: SharedValue<number>;
+  start: number;
+}) {
+  const scaleY = useDerivedValue(() => {
+    if (grow.value <= start) return 0;
+    return withTiming(Math.min(1, (grow.value - start) / 0.4), {
+      duration: 260,
+      easing: Easing.out(Easing.cubic),
+    });
+  });
+
+  const animatedProps = useAnimatedProps(() => {
+    const height = barH * scaleY.value;
+    return { height, y: baseline - height };
+  });
+
+  return (
+    <AnimatedRect x={x} width={barW} rx={3} fill={fill} animatedProps={animatedProps} />
   );
 }

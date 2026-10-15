@@ -17,7 +17,7 @@ import { useIsStandalone } from "@/lib/useStandalone";
 import { getDayLabel, getTodayDayOfWeek, WEEKDAYS } from "@/lib/mock-data";
 import { isApiError } from "@/lib/api";
 import { confirmAction, notify } from "@/lib/feedback";
-import { enterStagger } from "@/lib/anim";
+
 import {
   clearActiveWorkout,
   formatDraftWhen,
@@ -220,7 +220,7 @@ export default function SchedaScreen() {
         const weekday = WEEKDAYS[index];
         if (!day) {
           return (
-            <Card key={weekday} className="flex-row items-center gap-3 p-4" entering={enterStagger(index)}>
+            <Card key={weekday} className="flex-row items-center gap-3 p-4" delay={index * 90}>
               <View className="h-11 w-11 items-center justify-center rounded-xl bg-surface">
                 <Moon size={22} color="#64748B" strokeWidth={2.2} />
               </View>

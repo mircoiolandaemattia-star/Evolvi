@@ -1,8 +1,8 @@
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { router } from "expo-router";
 import { CheckCircle2, ChevronRight, Dumbbell, Moon } from "lucide-react-native";
 import type { WorkoutDay, WorkoutSession } from "@/types";
-import { enterDown } from "@/lib/anim";
+import { PressableScale } from "@/lib/reveal";
 import { Card } from "./Card";
 
 /** "18:32" — ora locale di fine sessione. */
@@ -40,7 +40,7 @@ export function WorkoutTodayCard({ day, session = null }: WorkoutTodayCardProps)
   }
 
   return (
-    <Card entering={enterDown(130)}>
+    <Card delay={130}>
       <View className="flex-row items-center gap-3">
         <View
           className={`h-11 w-11 items-center justify-center rounded-xl ${
@@ -95,7 +95,7 @@ export function WorkoutTodayCard({ day, session = null }: WorkoutTodayCardProps)
               </Text>
             </View>
           ) : (
-            <Pressable
+            <PressableScale
               onPress={handleStart}
               accessibilityRole="button"
               accessibilityLabel={`Inizia allenamento ${day.name}`}
@@ -105,7 +105,7 @@ export function WorkoutTodayCard({ day, session = null }: WorkoutTodayCardProps)
                 Inizia allenamento
               </Text>
               <ChevronRight size={18} color="#0F172A" strokeWidth={2.5} />
-            </Pressable>
+            </PressableScale>
           )}
         </View>
       )}

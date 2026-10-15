@@ -1,9 +1,9 @@
 import { Platform, Pressable, Text, View } from "react-native";
 import { router } from "expo-router";
-import { ChevronDown, ChevronUp, Dumbbell, Moon, PenLine, Play, Trash2 } from "lucide-react-native";
+import { Dumbbell, Moon, PenLine, Play, Trash2 } from "lucide-react-native";
 import type { WorkoutDay } from "@/types";
 import { getDayLabel } from "@/lib/mock-data";
-import { enterDown } from "@/lib/anim";
+import { PressableScale, RotatingChevron } from "@/lib/reveal";
 import { Card } from "@/components/home/Card";
 import { useIsStandalone } from "@/lib/useStandalone";
 import { ExerciseItem } from "./ExerciseItem";
@@ -64,7 +64,7 @@ export function WorkoutDayCard({
       : `${day.exercises.length} esercizi`;
 
   return (
-    <Card className="overflow-hidden p-0" entering={enterDown(enterDelay)}>
+    <Card className="overflow-hidden p-0" delay={enterDelay}>
       {/* Header: tap sulla zona di testo per espandere/chiudere, i bottoni
           di modifica ed eliminazione sono suoi fratelli (mai annidati,
           altrimenti un tocco aprirebbe anche il form). */}
@@ -107,11 +107,9 @@ export function WorkoutDayCard({
               </View>
             </View>
 
-            {expanded ? (
-              <ChevronUp size={20} color="#94A3B8" strokeWidth={2.2} />
-            ) : (
-              <ChevronDown size={20} color="#94A3B8" strokeWidth={2.2} />
-            )}
+            <View className="ml-1">
+              <RotatingChevron expanded={expanded} size={20} />
+            </View>
           </View>
         </Pressable>
 
@@ -159,7 +157,7 @@ export function WorkoutDayCard({
               ))}
 
               {!isReadOnly ? (
-                <Pressable
+                <PressableScale
                   onPress={handleStart}
                   accessibilityRole="button"
                   accessibilityLabel={`Inizia allenamento ${day.name}`}
@@ -169,7 +167,7 @@ export function WorkoutDayCard({
                   <Text className="font-inter-bold text-sm text-primary-foreground">
                     Inizia allenamento
                   </Text>
-                </Pressable>
+                </PressableScale>
               ) : null}
             </>
           )}

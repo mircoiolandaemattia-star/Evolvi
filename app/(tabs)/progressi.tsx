@@ -13,7 +13,6 @@ import * as ImagePicker from "expo-image-picker";
 import { RefreshCw } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { Card } from "@/components/home/Card";
-import { enterDown } from "@/lib/anim";
 import { useIsStandalone } from "@/lib/useStandalone";
 import { isApiError } from "@/lib/api";
 import { useProfile } from "@/lib/profileQueries";
@@ -171,7 +170,7 @@ export default function ProgressiScreen() {
   }
 
   const weightCard = (
-    <Card className="gap-2" entering={enterDown(0)}>
+    <Card className="gap-2" delay={0}>
       <Text className="font-inter-semibold text-sm text-foreground">Andamento peso</Text>
       <WeightChart
         points={weight.points}
@@ -183,21 +182,21 @@ export default function ProgressiScreen() {
   );
 
   const calorieCard = (
-    <Card className="gap-2" entering={enterDown(130)}>
+    <Card className="gap-2" delay={130}>
       <Text className="font-inter-semibold text-sm text-foreground">Calorie giornaliere</Text>
       <CalorieChart average={calories.average} target={calorieTarget} days={calories.days} />
     </Card>
   );
 
   const statsCard = (
-    <Card className="gap-3" entering={enterDown(260)}>
+    <Card className="gap-3" delay={260}>
       <Text className="font-inter-semibold text-sm text-foreground">Statistiche allenamento</Text>
       <WorkoutStatsGrid streakDays={stats.streakDays} sessions={stats.sessions} hours={stats.hours} />
     </Card>
   );
 
   const photosCard = (
-    <Card className="gap-3" entering={enterDown(390)}>
+    <Card className="gap-3" delay={390}>
       <Text className="font-inter-semibold text-sm text-foreground">Foto progressi</Text>
       <ProgressPhotoGrid
         photos={photos.data ?? []}
@@ -209,7 +208,7 @@ export default function ProgressiScreen() {
   );
 
   const measurementsCard = (
-    <Card className="gap-3" entering={enterDown(520)}>
+    <Card className="gap-3" delay={520}>
       <Text className="font-inter-semibold text-sm text-foreground">Misurazioni corporee</Text>
       <MeasurementsList diffs={diffs} readOnly={isReadOnly} onAdd={() => setShowMeasureModal(true)} />
     </Card>
