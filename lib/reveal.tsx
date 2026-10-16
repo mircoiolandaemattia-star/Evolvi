@@ -57,35 +57,84 @@ export const ENTER_DURATION = 750;
 /** `true` solo dove girano le animazioni native (escluso il web statico). */
 export const IS_NATIVE = Platform.OS !== "web";
 
+/**
+ * Ritardo (ms) prima di riportare il contenuto a 0 al blur.
+ *
+ * React Navigation mostra lo schermo **prima** di consegnare l'evento di
+ * focus: nessun effetto React può battere quel frame, quindi il contenuto
+ * partirebbe sempre dal valore vecchio ("schermata finta"). La soluzione è
+ * nascondere il contenuto mentre lo schermo è già fuori, così al ritorno si
+ * riparte da 0. Il piccolo ritardo lascia però visibile il contenuto durante
+ * la transizione di uscita (push dello stack), finché non è coperto/nascosto.
+ */
+const HIDE_ON_BLUR_DELAY = 350;
+
 const EASE = Easing.bezier(0.22, 1, 0.36, 1);
 
-const RevealContext = createContext(0);
+/** Stato di focus dello schermo: contatore dei ritorni + sfocatura ritardata. */
+type RevealState = { epoch: number; hidden: boolean };
 
-/** Epoch corrente: aumenta a ogni focus dello schermo che contiene il provider. */
+const RevealContext = createContext<RevealState>({ epoch: 0, hidden: false });
+
+/** Epoch corrente: aumenta a ogni ritorno sullo schermo che contiene il provider. */
 export function useRevealEpoch(): number {
-  return useContext(RevealContext);
+  return useContext(RevealContext).epoch;
+}
+
+/**
+ * `true` quando lo schermo è uscito (sfocato) e il contenuto è stato riportato
+ * a 0 in anticipo: al ritorno si parte invisibili e l'entrata riparte senza
+ * vedere la schermata "finta" per un frame.
+ */
+export function useRevealHidden(): boolean {
+  return useContext(RevealContext).hidden;
 }
 
 /**
  * Conteggio dei focus dello schermo. Il primo focus (il mount) NON
  * incrementa: le animazioni di entrata partono una volta sola al mount,
  * poi si ripetono a ogni ritorno sulla tab.
+ *
+ * Al blur il contenuto va a 0 **con un piccolo ritardo** (vedi
+ * `HIDE_ON_BLUR_DELAY`): la transizione di uscita mostra ancora il contenuto,
+ * e il contenuto si azzera mentre lo schermo è già nascosto. Così, tornando
+ * su una tab, la view è già a 0 e l'entrata parte senza flash.
  */
 export function RevealProvider({ children }: PropsWithChildren) {
-  const [epoch, setEpoch] = useState(0);
+  const [state, setState] = useState<RevealState>({ epoch: 0, hidden: false });
   const first = useRef(true);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
+
+  // Su smontaggio non deve restare un timer che piscia su un componente morto.
+  useEffect(() => () => {
+    mountedRef.current = false;
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
+      // Focus: annulla un eventuale nascondimento già programmato e riparte.
+      if (hideTimer.current !== null) {
+        clearTimeout(hideTimer.current);
+        hideTimer.current = null;
+      }
       if (first.current) {
         first.current = false;
-        return;
+      } else {
+        setState((s) => ({ epoch: s.epoch + 1, hidden: false }));
       }
-      setEpoch((e) => e + 1);
+      // Blur (cleanup): nasconde con ritardo (vedi HIDE_ON_BLUR_DELAY).
+      return () => {
+        hideTimer.current = setTimeout(() => {
+          hideTimer.current = null;
+          if (!mountedRef.current) return;
+          setState((s) => (s.hidden ? s : { ...s, hidden: true }));
+        }, HIDE_ON_BLUR_DELAY);
+      };
     }, []),
   );
 
-  return <RevealContext.Provider value={epoch}>{children}</RevealContext.Provider>;
+  return <RevealContext.Provider value={state}>{children}</RevealContext.Provider>;
 }
 
 /** `true` quando le animazioni vanno saltate (sistema **o** in-app). */
@@ -105,23 +154,30 @@ export function useRevealStyle(
   delayMs?: number,
   distance = 20,
 ): AnimatedStyle<ViewStyle> {
-  const epoch = useRevealEpoch();
+  const hidden = useRevealHidden();
   const motionOff = useMotionOff();
   const enabled = delayMs !== undefined;
   const progress = useSharedValue(0);
 
-  // useLayoutEffect (non useEffect): deve rilanciare l'entrata PRIMA del paint,
-  // altrimenti su cambio tab vedi un frame al valore vecchio (schermata "fatta")
-  // e poi l'animazione riparte.
+  // useLayoutEffect: applica il cambio PRIMA del paint. Al blur (hidden) il
+  // contenuto va a 0 mentre lo schermo è già fuori/coperto, così al ritorno si
+  // riparte invisibili e non si vede la schermata "fatta" per un frame.
   useLayoutEffect(() => {
+    // Nessuna anima (disabilitata, web o riduci movimento): sempre visibile.
     if (!enabled || motionOff || !IS_NATIVE) {
       progress.value = 1;
       return;
     }
+    if (hidden) {
+      // Uscita: nascondi. Lo schermo è già nascosto, qui non si vede.
+      progress.value = 0;
+      return;
+    }
+    // Mount o ritorno: l'entrata riparte da 0.
     progress.value = 0;
     const animated = withTiming(1, { duration: ENTER_DURATION, easing: EASE });
     progress.value = delayMs > 0 ? withDelay(delayMs, animated) : animated;
-  }, [enabled, epoch, delayMs, motionOff, progress]);
+  }, [enabled, hidden, delayMs, motionOff, progress]);
 
   return useAnimatedStyle(() => ({
     opacity: progress.value,
@@ -140,20 +196,24 @@ export function useRevealProgress(
   delayMs = 0,
   duration = ENTER_DURATION,
 ): SharedValue<number> {
-  const epoch = useRevealEpoch();
+  const hidden = useRevealHidden();
   const motionOff = useMotionOff();
   const progress = useSharedValue(0);
 
-  // Stesso motivo di useRevealStyle: reset prima del paint per evitare il flash.
+  // Stesso motivo di useRevealStyle: al blur a 0, al ritorno riparte da 0.
   useLayoutEffect(() => {
     if (motionOff || !IS_NATIVE) {
       progress.value = 1;
       return;
     }
+    if (hidden) {
+      progress.value = 0;
+      return;
+    }
     progress.value = 0;
     const animated = withTiming(1, { duration, easing: EASE });
     progress.value = delayMs > 0 ? withDelay(delayMs, animated) : animated;
-  }, [epoch, delayMs, duration, motionOff, progress]);
+  }, [hidden, delayMs, duration, motionOff, progress]);
 
   return progress;
 }
