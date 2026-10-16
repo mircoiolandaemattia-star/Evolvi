@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
 import {
   FadeIn,
@@ -86,7 +86,9 @@ export function useCountUp(target: number, options: TimingOptions = {}): number 
   const [value, setValue] = useState(0);
   const fromRef = useRef(0);
 
-  useEffect(() => {
+  // useLayoutEffect: va PRIMA del paint, così tornando su una tab non si vede
+  // un frame con la barra/numero già al valore finale (schermata "fatta").
+  useLayoutEffect(() => {
     // Ritorno su una tab (epoch > 0): il conteggio riparte da 0 così si
     // rivede "risalire". Al mount epoch è 0 e si parte dal valore corrente.
     const from = epoch === 0 ? fromRef.current : 0;
@@ -137,7 +139,9 @@ export function useProgress(ratio: number, options: TimingOptions = {}): SharedV
   const target = clamp01(ratio);
   const progress = useSharedValue(0);
 
-  useEffect(() => {
+  // useLayoutEffect (non useEffect): reset/ripartenza prima del paint, così
+  // su ritorno di tab non compare un frame con la barra già piena.
+  useLayoutEffect(() => {
     // Con riduci movimento (o sul web) il valore arriva subito: niente anima.
     if (motionOff || !IS_NATIVE) {
       progress.value = target;

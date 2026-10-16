@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type PropsWithChildren,
@@ -109,7 +110,10 @@ export function useRevealStyle(
   const enabled = delayMs !== undefined;
   const progress = useSharedValue(0);
 
-  useEffect(() => {
+  // useLayoutEffect (non useEffect): deve rilanciare l'entrata PRIMA del paint,
+  // altrimenti su cambio tab vedi un frame al valore vecchio (schermata "fatta")
+  // e poi l'animazione riparte.
+  useLayoutEffect(() => {
     if (!enabled || motionOff || !IS_NATIVE) {
       progress.value = 1;
       return;
@@ -140,7 +144,8 @@ export function useRevealProgress(
   const motionOff = useMotionOff();
   const progress = useSharedValue(0);
 
-  useEffect(() => {
+  // Stesso motivo di useRevealStyle: reset prima del paint per evitare il flash.
+  useLayoutEffect(() => {
     if (motionOff || !IS_NATIVE) {
       progress.value = 1;
       return;
