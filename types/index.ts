@@ -67,6 +67,28 @@ export interface Exercise {
   notes?: string | null;
 }
 
+/** Serie effettivamente svolta in una sessione (riga del `performed_data`). */
+export interface PerformedSet {
+  reps: number;
+  /** Assente: esercizio a corpo libero o senza carico indicato. */
+  weightKg?: number;
+}
+
+/**
+ * Esercizio di una sessione salvata.
+ *
+ * `name` è la dicitura della scheda **al momento dell'allenamento**: così lo
+ * storico e i progressi restano leggibili anche quando la scheda viene
+ * rigenerata (gli id degli esercizi cambiano).
+ */
+export interface PerformedExercise {
+  exerciseId: string;
+  name?: string;
+  /** Sostituito in sessione: carico di un altro movimento (vedi note). */
+  replaced?: boolean;
+  sets: PerformedSet[];
+}
+
 export interface WorkoutSession {
   id: string;
   userId: string;
@@ -77,6 +99,8 @@ export interface WorkoutSession {
   durationMinutes: number;
   /** Assente: il backend non registra le calorie della sessione. */
   caloriesBurned?: number;
+  /** Serie svolte; assente nelle sessioni salvate senza dettagli. */
+  performed?: PerformedExercise[];
 }
 
 export interface DietPlan {

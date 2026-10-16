@@ -21,6 +21,11 @@ const performedDataSchema = z
   .array(
     z.object({
       exercise_id: idSchema,
+      // Dicitura della scheda al momento della sessione: lo storico resta
+      // leggibile (e i progressi aggregabili) anche se la scheda cambia.
+      name: z.string().trim().min(1).max(200).optional(),
+      // Sostituito al volo: il carico svolto non rientra nella scheda.
+      replaced: z.boolean().optional(),
       sets: z.array(performedSet).max(200),
     }),
   )

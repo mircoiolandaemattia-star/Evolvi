@@ -521,6 +521,12 @@ export function ActiveWorkoutSession({ day, autoResume = false }: ActiveWorkoutS
     const performed = exercises
       .map((exercise, exerciseIndex) => ({
         exercise_id: exercise.id,
+        // Il nome viaggia con la sessione: lo storico resta leggibile anche
+        // se la scheda viene rigenerata (gli id degli esercizi cambiano).
+        name: exercise.name,
+        // Sostituito in sessione: il carico non deve diventare il peso della
+        // riga originale (vedi applySessionWeights).
+        ...(exercise.replaced ? { replaced: true } : {}),
         sets: (logs[exerciseIndex] ?? [])
           .filter((set) => set.completed)
           .map((set) => {
@@ -918,7 +924,7 @@ export function ActiveWorkoutSession({ day, autoResume = false }: ActiveWorkoutS
       <ReplaceExerciseModal
         visible={replacing}
         currentName={current.name}
-        onSelect={(name) => patchCurrentExercise({ name })}
+        onSelect={(name) => patchCurrentExercise({ name, replaced: true })}
         onClose={() => setReplacing(false)}
       />
     </KeyboardAvoidingView>

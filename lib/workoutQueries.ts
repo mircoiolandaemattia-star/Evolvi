@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   DayOfWeek,
   Exercise,
+  PerformedExercise,
+  PerformedSet,
   WorkoutDay,
   WorkoutPlan,
   WorkoutSession,
@@ -152,7 +154,38 @@ function mapSession(row: ApiWorkoutSession): WorkoutSession | null {
     endedAt: row.completed_at,
     durationMinutes,
     // Nessuna kcal: il backend non le calcola, il badge resta assente.
+    performed: parsePerformed(row.performed_data),
   };
+}
+
+/**
+ * `performed_data` è Json: qui viene ricondotto ai tipi dell'app, scartando
+ * ogni riga malformata invece di rompere l'intera lista storico. Le sessioni
+ * senza dettagli (o create da client vecchi) tornano `undefined`.
+ */
+function parsePerformed(raw: unknown): PerformedExercise[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const entries: PerformedExercise[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    if (typeof row.exercise_id !== "string" || !Array.isArray(row.sets)) continue;
+    const sets: PerformedSet[] = [];
+    for (const setRow of row.sets) {
+      if (!setRow || typeof setRow !== "object") continue;
+      const set = setRow as Record<string, unknown>;
+      if (typeof set.reps !== "number") continue;
+      const weight = typeof set.weight_kg === "number" ? set.weight_kg : undefined;
+      sets.push({ reps: set.reps, ...(weight != null ? { weightKg: weight } : {}) });
+    }
+    entries.push({
+      exerciseId: row.exercise_id,
+      sets,
+      ...(typeof row.name === "string" && row.name ? { name: row.name } : {}),
+      ...(row.replaced === true ? { replaced: true } : {}),
+    });
+  }
+  return entries.length > 0 ? entries : undefined;
 }
 
 /* -------------------------------- Query ---------------------------------- */
@@ -453,8 +486,17 @@ export interface CreateWorkoutSessionInput {
   dayId: string;
   startedAt: Date;
   completedAt: Date;
-  /** Serie effettivamente svolte: [{exercise_id, sets: [{reps, weight_kg?}]}]. */
-  performed: { exercise_id: string; sets: { reps: number; weight_kg?: number }[] }[];
+  /**
+   * Serie effettivamente svolte: [{exercise_id, name?, replaced?,
+   * sets: [{reps, weight_kg?}]}]. `name` dicitura della scheda al momento
+   * della sessione, `replaced` segnala un esercizio sostituito al volo.
+   */
+  performed: {
+    exercise_id: string;
+    name?: string;
+    replaced?: boolean;
+    sets: { reps: number; weight_kg?: number }[];
+  }[];
 }
 
 /** Registra la sessione chiusa (POST /workout-sessions). */
@@ -462,16 +504,49 @@ export function useCreateWorkoutSession() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: CreateWorkoutSessionInput) =>
-      api.post<ApiWorkoutSession>("/workout-sessions", {
+    mutationFn: async (input: CreateWorkoutSessionInput): Promise<ApiWorkoutSession> => {
+      const session = await api.post<ApiWorkoutSession>("/workout-sessions", {
         workout_plan_id: input.planId,
         workout_day_id: input.dayId,
         started_at: input.startedAt.toISOString(),
         completed_at: input.completedAt.toISOString(),
         performed_data: input.performed,
-      }),
+      });
+      // Il carico usato in sessione diventa il nuovo peso della scheda.
+      await applySessionWeights(input.performed);
+      return session;
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: workoutKeys.all }),
   });
+}
+
+/**
+ * Sostituisce nella scheda il peso di ciascun esercizio col carico più alto
+ * tra le serie completate in sessione (il "peso di lavoro"): è quello che
+ * l'utente ha appena dimostrato di gestire, quindi è quello da ripartire.
+ *
+ * Gli esercizi **sostituiti** in sessione sono esclusi: il loro carico
+ * appartiene a un altro movimento e non deve diventare il peso prescritto
+ * della riga originale.
+ *
+ * È best-effort: se la riga è stata nel frattempo eliminata o riscritta
+ * (404/409) la sessione resta salvata e la scheda semplicemente non cambia.
+ */
+async function applySessionWeights(
+  performed: CreateWorkoutSessionInput["performed"],
+): Promise<void> {
+  await Promise.all(
+    performed.map((entry) => {
+      if (entry.replaced) return Promise.resolve();
+      const weights = entry.sets
+        .map((set) => set.weight_kg)
+        .filter((weight): weight is number => typeof weight === "number" && weight > 0);
+      if (weights.length === 0) return Promise.resolve();
+      return api
+        .put(`/exercises/${entry.exercise_id}`, { weight_kg: Math.max(...weights) })
+        .catch(() => undefined);
+    }),
+  );
 }
 
 /* --------------------------- Segnale "fatto" ----------------------------- */

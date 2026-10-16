@@ -34,6 +34,12 @@ export type SessionExercise = {
   notes: string | null;
   /** Toccato durante la sessione (mostra il badge "modificato"). */
   edited: boolean;
+  /**
+   * Sostituito con un altro esercizio (macchinario occupato…): il carico
+   * svolto appartiene a quel movimento, **non** alla riga della scheda, quindi
+   * non deve diventare il nuovo peso prescritto.
+   */
+  replaced?: boolean;
 };
 
 export type ActiveWorkoutDraft = {

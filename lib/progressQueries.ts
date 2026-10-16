@@ -382,6 +382,98 @@ export function deriveWorkoutStats(
   };
 }
 
+/* --------------------- Progresso per esercizio ---------------------------- */
+
+export type ExerciseProgressPoint = {
+  date: string;
+  label: string;
+  /** Carico più alto tra le serie della sessione (0 = senza carico). */
+  weight: number;
+  /** Ripetizioni più alte in una serie della sessione. */
+  reps: number;
+};
+
+export type ExerciseProgress = {
+  exerciseId: string;
+  name: string;
+  /** Uno per sessione, in ordine cronologico. */
+  points: ExerciseProgressPoint[];
+  /** Serie completate sull'esercizio nel periodo. */
+  sets: number;
+  bestWeight: number;
+  bestReps: number;
+};
+
+/**
+ * Progresso di ciascun esercizio ricavato dal `performed_data` delle
+ * sessioni già scaricate (nessun endpoint nuovo): ogni sessione contribuisce
+ * con il carico più alto e le ripetizioni più alte, così la serie mostra il
+ * carico di lavoro che sale. Il nome viene dalla sessione stessa e, in
+ * subordine, dagli esercizi della scheda (`nameById`), perché gli id
+ * cambiano quando la scheda viene rigenerata.
+ */
+export function deriveExerciseProgress(
+  sessions: WorkoutSession[],
+  from: string,
+  to: string,
+  nameById: Record<string, string>,
+): ExerciseProgress[] {
+  const startMs = new Date(`${from}T00:00:00`).getTime();
+  const endMs = new Date(`${to}T23:59:59.999`).getTime();
+
+  const byExercise = new Map<string, ExerciseProgress>();
+
+  const ordered = sessions
+    .filter((session) => {
+      const started = Date.parse(session.startedAt);
+      return started >= startMs && started <= endMs;
+    })
+    .slice()
+    .sort((a, b) => Date.parse(a.startedAt) - Date.parse(b.startedAt));
+
+  for (const session of ordered) {
+    for (const entry of session.performed ?? []) {
+      if (entry.sets.length === 0) continue;
+      // Un esercizio sostituito non entra nella serie della riga di scheda
+      // (carichi di un altro movimento): forma una serie a parte, agganciata
+      // al suo nome, così comunque si segue anche il sostituto.
+      const key =
+        entry.replaced && entry.name ? `name:${entry.name}` : entry.exerciseId;
+      let progress = byExercise.get(key);
+      if (!progress) {
+        progress = {
+          exerciseId: key,
+          name: entry.name ?? nameById[entry.exerciseId] ?? "Esercizio",
+          points: [],
+          sets: 0,
+          bestWeight: 0,
+          bestReps: 0,
+        };
+        byExercise.set(key, progress);
+      }
+      // La dicitura più recente vince: la scheda può essere stata rinominata
+      // (mai da una sostituzione, che appartiene a un'altra serie).
+      if (entry.name && !entry.replaced) progress.name = entry.name;
+
+      const weights = entry.sets
+        .map((set) => set.weightKg)
+        .filter((weight): weight is number => typeof weight === "number" && weight > 0);
+      const weight = weights.length > 0 ? Math.max(...weights) : 0;
+      const reps = Math.max(...entry.sets.map((set) => set.reps));
+
+      const date = dayKey(session.startedAt) ?? toISODate(new Date(session.startedAt));
+      progress.points.push({ date, label: fmtShort(session.startedAt), weight, reps });
+      progress.sets += entry.sets.length;
+      progress.bestWeight = Math.max(progress.bestWeight, weight);
+      progress.bestReps = Math.max(progress.bestReps, reps);
+    }
+  }
+
+  return [...byExercise.values()].sort(
+    (a, b) => b.points.length - a.points.length || a.name.localeCompare(b.name),
+  );
+}
+
 /* ------------------------- Differenze misurazioni --------------------------- */
 
 export type MeasurementDiff = {

@@ -16,15 +16,17 @@ import { Card } from "@/components/home/Card";
 import { useIsStandalone } from "@/lib/useStandalone";
 import { isApiError } from "@/lib/api";
 import { useProfile } from "@/lib/profileQueries";
-import { useWorkoutSessions } from "@/lib/workoutQueries";
+import { useWorkoutPlan, useWorkoutPlans, useWorkoutSessions } from "@/lib/workoutQueries";
 import { PeriodSelector } from "@/components/progressi/PeriodSelector";
 import { WeightChart } from "@/components/progressi/WeightChart";
 import { CalorieChart } from "@/components/progressi/CalorieChart";
+import { ExerciseProgressCard } from "@/components/progressi/ExerciseProgressCard";
 import { WorkoutStatsGrid } from "@/components/progressi/WorkoutStatsGrid";
 import { ProgressPhotoGrid } from "@/components/progressi/ProgressPhotoGrid";
 import { MeasurementsList } from "@/components/progressi/MeasurementsList";
 import { AddMeasurementModal } from "@/components/progressi/AddMeasurementModal";
 import {
+  deriveExerciseProgress,
   deriveWorkoutStats,
   measurementDiffs,
   periodRange,
@@ -72,7 +74,26 @@ export default function ProgressiScreen() {
   const addMeasurement = useAddMeasurement();
   const uploadPhoto = useUploadProgressPhoto();
 
+  // Nomi degli esercizi per id: coprono le sessioni salvate senza `name`
+  // nel performed_data (quelle registrate prima di questa versione).
+  const plansQuery = useWorkoutPlans();
+  const activePlan =
+    (plansQuery.data ?? []).find((plan) => plan.isActive) ?? (plansQuery.data ?? [])[0] ?? null;
+  const planQuery = useWorkoutPlan(activePlan?.id);
+  const exerciseNames = useMemo(() => {
+    const names: Record<string, string> = {};
+    for (const day of planQuery.data?.days ?? []) {
+      for (const exercise of day.exercises) names[exercise.id] = exercise.name;
+    }
+    return names;
+  }, [planQuery.data]);
+
   const stats = deriveWorkoutStats(sessionsQuery.data ?? [], range.from, range.to);
+  const exerciseProgress = useMemo(
+    () =>
+      deriveExerciseProgress(sessionsQuery.data ?? [], range.from, range.to, exerciseNames),
+    [sessionsQuery.data, range.from, range.to, exerciseNames],
+  );
   const diffs = measurementDiffs(weight.measurements);
   const calorieTarget = profileQuery.data?.daily_calorie_target ?? 0;
 
@@ -195,6 +216,20 @@ export default function ProgressiScreen() {
     </Card>
   );
 
+  const exerciseCard = (
+    <Card className="gap-3" delay={650}>
+      <Text className="font-inter-semibold text-sm text-foreground">Progresso esercizi</Text>
+      {exerciseProgress.length === 0 ? (
+        <Text className="font-sans text-sm leading-5 text-muted">
+          Nessuna serie registrata nel periodo: completa un allenamento per seguire carico e
+          ripetizioni di ogni esercizio.
+        </Text>
+      ) : (
+        <ExerciseProgressCard items={exerciseProgress} />
+      )}
+    </Card>
+  );
+
   const photosCard = (
     <Card className="gap-3" delay={390}>
       <Text className="font-inter-semibold text-sm text-foreground">Foto progressi</Text>
@@ -260,6 +295,7 @@ export default function ProgressiScreen() {
             </View>
             <View className="flex-1 gap-6">
               {calorieCard}
+              {exerciseCard}
               {photosCard}
               {isReadOnly ? (
                 <View className="rounded-2xl border border-border bg-surface px-4 py-3">
@@ -275,6 +311,7 @@ export default function ProgressiScreen() {
             {weightCard}
             {calorieCard}
             {statsCard}
+            {exerciseCard}
             {photosCard}
             {measurementsCard}
           </>

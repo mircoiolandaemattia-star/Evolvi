@@ -278,6 +278,11 @@ export default function SchedaScreen() {
         <WorkoutHistoryList
           sessions={sessionsQuery.data ?? []}
           dayNames={Object.fromEntries(days.map((day) => [day.id, day.name]))}
+          exerciseNames={Object.fromEntries(
+            days.flatMap((day) =>
+              day.exercises.map((exercise) => [exercise.id, exercise.name] as const),
+            ),
+          )}
         />
       )}
     </View>
