@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   BackHandler,
@@ -12,7 +12,14 @@ import {
   View,
 } from "react-native";
 import { router } from "expo-router";
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 import {
   ArrowLeftRight,
   Check,
@@ -43,7 +50,7 @@ import {
   useCreateWorkoutSession,
 } from "@/lib/workoutQueries";
 import { useProgress } from "@/lib/anim";
-import { useMotionOff } from "@/lib/reveal";
+import { IS_NATIVE, useMotionOff } from "@/lib/reveal";
 import { NumberField, PrimaryButton } from "./formControls";
 import { ReplaceExerciseModal } from "./ReplaceExerciseModal";
 
@@ -170,6 +177,8 @@ export function ActiveWorkoutSession({ day, autoResume = false }: ActiveWorkoutS
     day.exercises.map(toSessionExercise),
   );
   const [index, setIndex] = useState(0);
+  /** Direzione dell'ultimo cambio esercizio: avanti (1), indietro (−1), apertura (0). */
+  const [direction, setDirection] = useState<0 | 1 | -1>(0);
   const [logs, setLogs] = useState<ExerciseLogs>(() => initLogs(exercises));
   const [rest, setRest] = useState<{ seconds: number } | null>(null);
   const [restRemaining, setRestRemaining] = useState<number | null>(null);
@@ -193,6 +202,14 @@ export function ActiveWorkoutSession({ day, autoResume = false }: ActiveWorkoutS
   const createSession = useCreateWorkoutSession();
   /** Altezza schermo: serve a capire se il focus è già visibile. */
   const { height } = useWindowDimensions();
+  const motionOff = useMotionOff();
+  const insets = useSafeAreaInsets();
+  /**
+   * Spazio sotto l'ultima voce dello scroll: il tasto "Termina allenamento"
+   * deve poter salire sopra la tab bar (base 54px come in
+   * app/(tabs)/_layout, più l'inset gestito della barra).
+   */
+  const scrollBottomPad = 54 + Math.max(insets.bottom, 0) + 20;
 
   const current = exercises[index];
   const currentLog = logs[index] ?? [];
@@ -408,6 +425,7 @@ export function ActiveWorkoutSession({ day, autoResume = false }: ActiveWorkoutS
     const doneNow = currentLog.filter((set) => set.completed).length + 1;
     if (doneNow >= currentLog.length && index < exercises.length - 1) {
       setEditing(false);
+      setDirection(1);
       setIndex(index + 1);
     }
   }
@@ -440,6 +458,7 @@ export function ActiveWorkoutSession({ day, autoResume = false }: ActiveWorkoutS
   function goTo(target: number) {
     if (target < 0 || target >= exercises.length) return;
     setEditing(false);
+    setDirection(target > index ? 1 : target < index ? -1 : 0);
     setIndex(target);
   }
 
@@ -619,7 +638,8 @@ export function ActiveWorkoutSession({ day, autoResume = false }: ActiveWorkoutS
         ref={scrollRef}
         className="flex-1"
         keyboardShouldPersistTaps="handled"
-        contentContainerClassName="gap-5 px-4 pb-8 pt-6"
+        contentContainerClassName="gap-5 px-4 pt-6"
+        contentContainerStyle={{ paddingBottom: scrollBottomPad }}
         onScroll={(event) => {
           scrollYRef.current = event.nativeEvent.contentOffset.y;
         }}
@@ -695,8 +715,10 @@ export function ActiveWorkoutSession({ day, autoResume = false }: ActiveWorkoutS
             }
 
             return (
-              <View
+              <ExerciseTransition
                 key={exercise.id}
+                direction={direction}
+                motionOff={motionOff}
                 className="rounded-2xl border-2 border-primary bg-surface p-4"
               >
                 <View className="flex-row items-start gap-3">
@@ -832,7 +854,7 @@ export function ActiveWorkoutSession({ day, autoResume = false }: ActiveWorkoutS
                     );
                   })}
                 </View>
-              </View>
+              </ExerciseTransition>
             );
           })}
         </View>
@@ -1040,5 +1062,52 @@ function SetCheckbox({
         <Check size={20} color="#0F172A" strokeWidth={3} />
       </Animated.View>
     </Pressable>
+  );
+}
+
+/**
+ * Transizione fra due esercizi: quando il focus avanza (avanti o indietro)
+ * il pannello attivo entra scorrendo dal lato giusto con una dissolve — da
+ * destra andando avanti, da sinistra tornando indietro, e solo una dissolvenza
+ * all'apertura iniziale.
+ *
+ * Vive nel ramo "focus" della lista: a ogni cambio esercizio il tipo di
+ * elemento scambia (pannello ↔ riga compatta), quindi qui si monta da zero e
+ * la shared value riparte da 0: niente flash dello stato finale. Rispetta il
+ * "riduci movimento" ed è disattivato sul web (come il resto delle animazioni).
+ */
+function ExerciseTransition({
+  direction,
+  motionOff,
+  className,
+  children,
+}: {
+  direction: 0 | 1 | -1;
+  motionOff: boolean;
+  className?: string;
+  children: ReactNode;
+}) {
+  const progress = useSharedValue(0);
+
+  useLayoutEffect(() => {
+    if (motionOff || !IS_NATIVE) {
+      progress.value = 1;
+      return;
+    }
+    progress.value = 0;
+    progress.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.cubic) });
+  }, [motionOff, progress]);
+
+  // Scorrimento orizzontale di partenza secondo la direzione del cambio.
+  const from = direction === 1 ? 40 : direction === -1 ? -40 : 0;
+  const style = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [{ translateX: (1 - progress.value) * from }],
+  }));
+
+  return (
+    <Animated.View style={style} className={className}>
+      {children}
+    </Animated.View>
   );
 }
