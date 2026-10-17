@@ -1,12 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { LogOut } from "lucide-react-native";
@@ -23,6 +16,7 @@ import { AddReminderModal } from "@/components/profilo/AddReminderModal";
 import { SubscriptionCard, type SubscriptionState } from "@/components/profilo/SubscriptionCard";
 import { useAuth } from "@/lib/auth";
 import { useIsStandalone } from "@/lib/useStandalone";
+import { useIsWide } from "@/lib/layout";
 import { type ActivityLevel, type Goal } from "@/lib/calorieCalculator";
 import { GOAL_TO_API, ACTIVITY_TO_API, goalFromApi, activityFromApi, type CreateProfileInput } from "@/lib/profileQueries";
 import { isApiError } from "@/lib/api";
@@ -45,8 +39,6 @@ import {
   type Reminder,
 } from "@/lib/reminderQueries";
 
-const WIDE_BP = 768;
-
 /** Messaggio d'errore leggibile: quello dell'API o una rete assente. */
 function errorMessage(error: unknown): string {
   return isApiError(error) ? error.message : "Connessione al server non riuscita.";
@@ -60,12 +52,11 @@ function errorMessage(error: unknown): string {
  * la cache React Query. Mock rimossi per le parti collegate.
  */
 export default function ProfiloScreen() {
-  const { width } = useWindowDimensions();
   const isStandalone = useIsStandalone();
   const { user, logout } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const isWide = width >= WIDE_BP;
+  const isWide = useIsWide();
   const isReadOnly = Platform.OS === "web" && !isStandalone;
 
   const [showAddReminder, setShowAddReminder] = useState(false);
@@ -395,7 +386,9 @@ export default function ProfiloScreen() {
     <Screen>
       <ScrollView
         className="flex-1"
-        contentContainerClassName={`w-full gap-6 px-4 py-6 ${isWide ? "mx-auto max-w-5xl px-6" : ""}`}
+        contentContainerClassName={`w-full gap-6 py-6 ${
+          isWide ? "mx-auto max-w-5xl px-6" : "px-4"
+        }`}
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
       >

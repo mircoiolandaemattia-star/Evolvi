@@ -7,7 +7,6 @@ import {
   Pressable,
   ScrollView,
   Text,
-  useWindowDimensions,
   View,
 } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
@@ -26,6 +25,7 @@ import {
 } from "lucide-react-native";
 import type { DayOfWeek, ExerciseTemplate } from "@/types";
 import { isApiError } from "@/lib/api";
+import { useIsWide } from "@/lib/layout";
 import { aiErrorMessage, useGenerateWorkout, useReadFile, type AiFileWorkout } from "@/lib/aiQueries";
 import { documentMimeType, DocumentReadError, readDocumentBase64 } from "@/lib/fileReader";
 import { useSaveWorkoutDay, useSaveWorkoutPlan } from "@/lib/workoutQueries";
@@ -156,8 +156,7 @@ export function CreateWorkoutModal({
   onClose,
   onDone,
 }: CreateWorkoutModalProps) {
-  const { width } = useWindowDimensions();
-  const isWide = width >= 768;
+  const isWide = useIsWide();
 
   // Stato iniziale dal weekday preselezionato: aprire da una card vuota
   // parte già sul form manuale, dal bottone "+" parte dal menu.

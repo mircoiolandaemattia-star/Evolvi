@@ -1,6 +1,7 @@
 import { useMemo } from "react";
-import { ScrollView, Text, useWindowDimensions, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import { Screen } from "@/components/Screen";
+import { useIsWide } from "@/lib/layout";
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
 import { useAuth } from "@/lib/auth";
 import { dateToString } from "@/lib/dietaStore";
@@ -13,8 +14,6 @@ import { CalorieRing } from "@/components/home/CalorieRing";
 import { WorkoutTodayCard } from "@/components/home/WorkoutTodayCard";
 import { MealsSummaryCard } from "@/components/home/MealsSummaryCard";
 import { QuickStats } from "@/components/home/QuickStats";
-
-const WIDE_BREAKPOINT = 768; // px
 
 /** Finestra (giorni) interrogata per la streak dei pasti. */
 const STREAK_WINDOW_DAYS = 90;
@@ -92,8 +91,7 @@ function computeQuickStats(
  */
 export default function HomeScreen() {
   const { user } = useAuth();
-  const { width } = useWindowDimensions();
-  const isWide = width >= WIDE_BREAKPOINT;
+  const isWide = useIsWide();
 
   const today = useMemo(() => dateToString(new Date()), []);
 
@@ -179,8 +177,8 @@ export default function HomeScreen() {
     <Screen>
       <ScrollView
         className="flex-1"
-        contentContainerClassName={`w-full gap-6 px-4 py-6 ${
-          isWide ? "mx-auto max-w-5xl px-6" : ""
+        contentContainerClassName={`w-full gap-6 py-6 ${
+          isWide ? "mx-auto max-w-5xl px-6" : "px-4"
         }`}
       >
         {/* Header — fix Android: safe-area via Screen + wrapping + capitalizzazione nome */}
@@ -198,27 +196,27 @@ export default function HomeScreen() {
 
         <PWAInstallBanner />
 
-      {isWide ? (
-        /* Layout desktop: 2 colonne */
-        <View className="w-full flex-row items-start gap-4">
-          <View className="flex-1 gap-4">
-            <CalorieRing consumed={consumed} target={target} />
-            <MealsSummaryCard meals={mealsToday} />
+        {isWide ? (
+          /* Layout desktop: 2 colonne */
+          <View className="w-full flex-row items-start gap-4">
+            <View className="flex-1 gap-4">
+              <CalorieRing consumed={consumed} target={target} />
+              <MealsSummaryCard meals={mealsToday} />
+            </View>
+            <View className="flex-1 gap-4">
+              <WorkoutTodayCard day={workoutDay} session={todaySession} />
+              <QuickStats stats={stats} />
+            </View>
           </View>
-          <View className="flex-1 gap-4">
+        ) : (
+          /* Layout mobile: tutto verticale */
+          <View className="w-full gap-4">
+            <CalorieRing consumed={consumed} target={target} />
             <WorkoutTodayCard day={workoutDay} session={todaySession} />
+            <MealsSummaryCard meals={mealsToday} />
             <QuickStats stats={stats} />
           </View>
-        </View>
-      ) : (
-        /* Layout mobile: tutto verticale */
-        <View className="w-full gap-4">
-          <CalorieRing consumed={consumed} target={target} />
-          <WorkoutTodayCard day={workoutDay} session={todaySession} />
-          <MealsSummaryCard meals={mealsToday} />
-          <QuickStats stats={stats} />
-        </View>
-      )}
+        )}
       </ScrollView>
     </Screen>
   );

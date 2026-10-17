@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { Check, Search, X } from "lucide-react-native";
 import { MOCK_EXERCISE_LIBRARY, WORKOUT_EQUIPMENT_OPTIONS } from "@/lib/mock-data";
+import { useIsWide } from "@/lib/layout";
 
 type ReplaceExerciseModalProps = {
   visible: boolean;
@@ -40,6 +41,7 @@ export function ReplaceExerciseModal({
   onClose,
 }: ReplaceExerciseModalProps) {
   const [query, setQuery] = useState("");
+  const isWide = useIsWide();
 
   const groups = useMemo(() => {
     const search = query.trim().toLowerCase();
@@ -72,9 +74,13 @@ export function ReplaceExerciseModal({
       >
         <View
           className="flex-1 bg-black/60"
-          style={{ justifyContent: "flex-end", alignItems: "center" }}
+          style={{ justifyContent: isWide ? "center" : "flex-end", alignItems: "center" }}
         >
-          <View className="w-full max-w-md overflow-hidden rounded-t-3xl border border-border bg-surface">
+          <View
+            className={`w-full max-w-md overflow-hidden border-border bg-surface ${
+              isWide ? "rounded-2xl border" : "rounded-t-3xl border-t"
+            }`}
+          >
             <View className="flex-row items-center gap-1 border-b border-border px-3 py-2">
               <Text className="flex-1 font-inter-bold text-lg text-foreground">
                 Sostituisci esercizio

@@ -13,8 +13,8 @@ export default function CheckEmailScreen() {
 
   return (
     <Screen className="justify-center">
-      <View className="flex-1 items-center justify-center gap-6 px-6 py-6">
-        <Logo size={80} />
+      <View className="w-full max-w-md flex-1 items-center justify-center gap-6 self-center px-6 py-6">
+        <Logo size={80} className="self-center" />
 
         <View className="gap-2">
           <Text className="text-center font-inter-bold text-3xl text-foreground">

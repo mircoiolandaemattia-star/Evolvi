@@ -6,7 +6,6 @@ import {
   ScrollView,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
 } from "react-native";
 import { router, useFocusEffect } from "expo-router";
@@ -37,8 +36,7 @@ import { WorkoutDayCard } from "@/components/scheda/WorkoutDayCard";
 import { WorkoutHistoryList } from "@/components/scheda/WorkoutHistoryList";
 import { CreateWorkoutModal } from "@/components/scheda/CreateWorkoutModal";
 import { EditWorkoutDayModal } from "@/components/scheda/EditWorkoutDayModal";
-
-const WIDE_BREAKPOINT = 768;
+import { useIsWide } from "@/lib/layout";
 
 /** Messaggio d'errore leggibile: quello dell'API o una rete assente. */
 function errorMessage(error: unknown): string {
@@ -55,9 +53,8 @@ function errorMessage(error: unknown): string {
  * due colonne.
  */
 export default function SchedaScreen() {
-  const { width } = useWindowDimensions();
   const isStandalone = useIsStandalone();
-  const isWide = width >= WIDE_BREAKPOINT;
+  const isWide = useIsWide();
   const isInteractive = !(Platform.OS === "web" && !isStandalone);
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -355,8 +352,8 @@ export default function SchedaScreen() {
     <Screen>
       <ScrollView
         className="flex-1"
-        contentContainerClassName={`w-full gap-6 px-4 py-6 ${
-          isWide ? "mx-auto max-w-5xl px-6" : ""
+        contentContainerClassName={`w-full gap-6 py-6 ${
+          isWide ? "mx-auto max-w-5xl px-6" : "px-4"
         }`}
       >
         {/* Header */}

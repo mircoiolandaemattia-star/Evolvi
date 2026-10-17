@@ -130,7 +130,7 @@ export default function OnboardingScreen() {
 
   return (
     <Screen>
-      <View className="flex-1 px-6 pt-4">
+      <View className="w-full max-w-lg flex-1 self-center px-6 pt-4">
         <OnboardingProgressBar current={step} total={TOTAL} />
 
         <ScrollView className="flex-1" contentContainerClassName="py-6" showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">

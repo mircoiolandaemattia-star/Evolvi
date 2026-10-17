@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { Check, Sparkles, X } from "lucide-react-native";
 import { aiErrorMessage, useGenerateDiet, type AiGeneratedDietPlan } from "@/lib/aiQueries";
+import { useIsWide } from "@/lib/layout";
 
 type Props = {
   visible: boolean;
@@ -61,6 +62,7 @@ export function GenerateDietModal({ visible, onClose }: Props) {
   const [result, setResult] = useState<AiGeneratedDietPlan | null>(null);
 
   const generate = useGenerateDiet();
+  const isWide = useIsWide();
 
   function reset() {
     setGoal(GOALS[0].key);
@@ -106,8 +108,16 @@ export function GenerateDietModal({ visible, onClose }: Props) {
       onRequestClose={handleClose}
       statusBarTranslucent
     >
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} className="flex-1 justify-end bg-black/60">
-        <View className="max-h-[92%] w-full rounded-t-3xl border-t border-border bg-surface">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        className="flex-1 bg-black/60"
+        style={{ justifyContent: isWide ? "center" : "flex-end", alignItems: "center" }}
+      >
+        <View
+          className={`max-h-[92%] w-full max-w-md border-border bg-surface ${
+            isWide ? "rounded-2xl border" : "rounded-t-3xl border-t"
+          }`}
+        >
           <View className="flex-row items-center gap-2 border-b border-border px-3 py-2">
             <Text className="flex-1 font-inter-bold text-base text-foreground">
               {result ? "Dieta generata" : "Genera dieta con AI"}

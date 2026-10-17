@@ -1,6 +1,7 @@
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { Clock, Dumbbell, Repeat, X } from "lucide-react-native";
 import type { PerformedExercise, WorkoutSession } from "@/types";
+import { useIsWide } from "@/lib/layout";
 
 type Props = {
   /** Sessione aperta dalla lista (`null` = modal chiuso). */
@@ -93,6 +94,7 @@ function ExerciseBlock({ entry, exerciseNames }: ExerciseBlockProps) {
  * (carico più alto) sono evidenziate in arancione.
  */
 export function SessionDetailModal({ session, dayName, exerciseNames, onClose }: Props) {
+  const isWide = useIsWide();
   const performed = session?.performed ?? [];
   const totalSets = performed.reduce((sum, entry) => sum + entry.sets.length, 0);
   const totalReps = performed.reduce(
@@ -111,7 +113,8 @@ export function SessionDetailModal({ session, dayName, exerciseNames, onClose }:
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
-        className="flex-1 justify-end"
+        className="flex-1"
+        style={{ justifyContent: isWide ? "center" : "flex-end" }}
       >
         {/* Fondo toccabile dietro al foglio, posizionato in assoluto così i
             tocchi sul contenuto non chiudono la modal. */}
@@ -121,7 +124,11 @@ export function SessionDetailModal({ session, dayName, exerciseNames, onClose }:
           accessibilityLabel="Chiudi dettaglio sessione"
           className="absolute inset-0 bg-black/60"
         />
-        <View className="max-h-[92%] w-full rounded-t-3xl border-t border-border bg-surface">
+        <View
+          className={`w-full max-w-md self-center max-h-[92%] border-border bg-surface ${
+            isWide ? "rounded-2xl border" : "rounded-t-3xl border-t"
+          }`}
+        >
           <View className="flex-row items-center gap-2 border-b border-border px-3 py-2">
             <Text className="flex-1 font-inter-bold text-lg text-foreground">
               {dayName || "Allenamento"}

@@ -6,12 +6,12 @@ import {
   Pressable,
   ScrollView,
   Text,
-  useWindowDimensions,
   View,
 } from "react-native";
 import { ChevronDown, ChevronUp, Plus, Trash2, X } from "lucide-react-native";
 import type { DayOfWeek, ExerciseTemplate, WorkoutDay } from "@/types";
 import { isApiError } from "@/lib/api";
+import { useIsWide } from "@/lib/layout";
 import { MOCK_EXERCISE_LIBRARY, WEEKDAYS, getDayShortLabel } from "@/lib/mock-data";
 import { useUpdateWorkoutDay, type EditExerciseInput } from "@/lib/workoutQueries";
 import { Chip, IconButton, NumberField, PrimaryButton, Section, TextField } from "./formControls";
@@ -83,8 +83,7 @@ export function EditWorkoutDayModal({
   onDone,
   onDelete,
 }: EditWorkoutDayModalProps) {
-  const { width } = useWindowDimensions();
-  const isWide = width >= 768;
+  const isWide = useIsWide();
 
   const [dayName, setDayName] = useState(day.name);
   const [dayOfWeek, setDayOfWeek] = useState<DayOfWeek>(day.dayOfWeek);

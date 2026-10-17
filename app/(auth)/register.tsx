@@ -69,10 +69,13 @@ export default function RegisterScreen() {
 
   return (
     <Screen className="justify-center">
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} className="flex-1 justify-center px-6 py-6">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        className="flex-1 w-full max-w-md justify-center self-center px-6 py-6"
+      >
         <Reveal delay={0} className="mb-8 items-center gap-4">
-          <Logo size={80} />
-          <Text className="font-inter-bold text-3xl text-foreground">Crea account</Text>
+          <Logo size={80} className="self-center" />
+          <Text className="text-center font-inter-bold text-3xl text-foreground">Crea account</Text>
           <Text className="text-center font-sans text-sm text-muted">Unisciti a Evolvi in pochi secondi.</Text>
         </Reveal>
 

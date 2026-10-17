@@ -50,6 +50,7 @@ import {
   useCreateWorkoutSession,
 } from "@/lib/workoutQueries";
 import { useProgress } from "@/lib/anim";
+import { CENTERED_CONTENT, TAB_BAR_HEIGHT } from "@/lib/layout";
 import { IS_NATIVE, useMotionOff } from "@/lib/reveal";
 import { NumberField, PrimaryButton } from "./formControls";
 import { ReplaceExerciseModal } from "./ReplaceExerciseModal";
@@ -209,7 +210,7 @@ export function ActiveWorkoutSession({ day, autoResume = false }: ActiveWorkoutS
    * deve poter salire sopra la tab bar (base 54px come in
    * app/(tabs)/_layout, più l'inset gestito della barra).
    */
-  const scrollBottomPad = 54 + Math.max(insets.bottom, 0) + 20;
+  const scrollBottomPad = TAB_BAR_HEIGHT + Math.max(insets.bottom, 0) + 20;
 
   const current = exercises[index];
   const currentLog = logs[index] ?? [];
@@ -585,7 +586,7 @@ export function ActiveWorkoutSession({ day, autoResume = false }: ActiveWorkoutS
         className="flex-1 bg-background"
       >
         <ScrollView
-          contentContainerClassName="gap-4 px-4 pb-8 pt-6"
+          contentContainerClassName={`gap-4 px-4 pb-8 pt-6 ${CENTERED_CONTENT}`}
           keyboardShouldPersistTaps="handled"
         >
           <View className="items-center gap-3 rounded-2xl border border-primary/40 bg-primary/10 p-5">
@@ -644,7 +645,7 @@ export function ActiveWorkoutSession({ day, autoResume = false }: ActiveWorkoutS
         ref={scrollRef}
         className="flex-1"
         keyboardShouldPersistTaps="handled"
-        contentContainerClassName="gap-5 px-4 pt-6"
+        contentContainerClassName={`gap-5 px-4 pt-6 ${CENTERED_CONTENT}`}
         contentContainerStyle={{ paddingBottom: scrollBottomPad }}
         onScroll={(event) => {
           scrollYRef.current = event.nativeEvent.contentOffset.y;

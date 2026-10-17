@@ -35,7 +35,7 @@ export default function EmailVerifiedScreen() {
 
   return (
     <Screen className="justify-center">
-      <View className="flex-1 items-center justify-center gap-6 px-6 py-6">
+      <View className="w-full max-w-md flex-1 items-center justify-center gap-6 self-center px-6 py-6">
         {status === "checking" ? (
           <>
             <ActivityIndicator size="large" color="#F97316" />
@@ -69,7 +69,7 @@ export default function EmailVerifiedScreen() {
           </>
         ) : (
           <>
-            <Logo size={80} />
+            <Logo size={80} className="self-center" />
             <View className="gap-2">
               <Text className="text-center font-inter-bold text-3xl text-foreground">
                 Conferma ricevuta

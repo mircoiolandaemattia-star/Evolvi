@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, Tex
 import { X } from "lucide-react-native";
 import type { DayOfWeek } from "@/types";
 import { WEEKDAYS, dayLabel } from "@/lib/reminderQueries";
+import { useIsWide } from "@/lib/layout";
 import { ValueSlider } from "@/components/ui/ValueSlider";
 
 type Props = {
@@ -26,6 +27,7 @@ export function AddReminderModal({ visible, onClose, onSave }: Props) {
     return d;
   });
   const [message, setMessage] = useState("Vai in palestra");
+  const isWide = useIsWide();
 
   // Reset dei campi alla chiusura: la riapertura parte sempre pulita (un
   // effect che fa setState all'apertura è vietata dal lint).
@@ -52,8 +54,17 @@ export function AddReminderModal({ visible, onClose, onSave }: Props) {
 
   return (
     <Modal visible={visible} transparent animationType={Platform.OS === "web" ? "none" : "slide"} onRequestClose={handleClose} statusBarTranslucent>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} className="flex-1 justify-end bg-black/60">
-        <View className="max-h-[92%] w-full rounded-t-3xl border-t border-border bg-surface" style={{ maxHeight: "92%" }}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        className="flex-1 bg-black/60"
+        style={{ justifyContent: isWide ? "center" : "flex-end", alignItems: "center" }}
+      >
+        <View
+          className={`max-h-[92%] w-full max-w-md border-border bg-surface ${
+            isWide ? "rounded-2xl border" : "rounded-t-3xl border-t"
+          }`}
+          style={{ maxHeight: "92%" }}
+        >
           <View className="flex-row items-center gap-2 border-b border-border px-3 py-2">
             <Text className="flex-1 font-inter-bold text-lg text-foreground">Aggiungi promemoria</Text>
             <Pressable onPress={handleClose} className="h-11 w-11 items-center justify-center rounded-lg active:opacity-60">

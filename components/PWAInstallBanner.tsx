@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Platform, Pressable, Text, useWindowDimensions, View } from "react-native";
+import { Platform, Pressable, Text, View } from "react-native";
 import { Download, Share, Smartphone, X } from "lucide-react-native";
 import { Card } from "@/components/home/Card";
+import { useIsWide } from "@/lib/layout";
 import { useIsStandalone } from "@/lib/useStandalone";
 
 const DISMISS_KEY = "evolvi_pwa_banner_dismissed";
@@ -12,8 +13,8 @@ function isIOS(): boolean {
 }
 
 export function PWAInstallBanner() {
-  const { width } = useWindowDimensions();
   const isStandalone = useIsStandalone();
+  const isWide = useIsWide();
   // Chiusura persistente: letta da localStorage in fase di inizializzazione
   // (non in un'effect: setState sincrono dentro un'effect è vietato dal lint).
   const [dismissed, setDismissed] = useState(() => {
@@ -27,7 +28,9 @@ export function PWAInstallBanner() {
   const [deferredPrompt, setDeferredPrompt] = useState<unknown>(null);
   const [canInstall, setCanInstall] = useState(false);
 
-  const isWebMobile = Platform.OS === "web" && width < 768 && !isStandalone;
+  // Serve solo sul web "mobile": su desktop il browser è già capace di
+  // installare da solo e il banner disturba.
+  const isWebMobile = Platform.OS === "web" && !isWide && !isStandalone;
 
   useEffect(() => {
     // Solo su web: su React Native window === global e NON esistono

@@ -20,6 +20,7 @@ import {
   type LucideIcon,
 } from "lucide-react-native";
 import { useReduceMotionSetting } from "@/lib/motionSettings";
+import { TAB_BAR_HEIGHT } from "@/lib/layout";
 
 /**
  * Tab bar per piattaforma:
@@ -67,8 +68,11 @@ const ICON_STROKE = 2.2;
  * `numberOfLines={1}` (overflow hidden), la parte inferiore del testo
  * veniva tagliata. Con 54px c'è aria sufficiente; gli inset inferiori
  * vanno sommati perché il fork li sottrae dall'altezza dichiarata.
+ *
+ * L'altezza è la costante condivisa `TAB_BAR_HEIGHT` (lib/layout): anche la
+ * sessione di allenamento attivo ne ha bisogno per far salire il pulsante
+ * "Termina" sopra la barra.
  */
-const TAB_BAR_HEIGHT = 54;
 
 type TabIconProps = { focused: boolean; color: ColorValue; size: number };
 

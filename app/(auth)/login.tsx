@@ -53,10 +53,13 @@ export default function LoginScreen() {
 
   return (
     <Screen className="justify-center">
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} className="flex-1 justify-center px-6">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        className="flex-1 w-full max-w-md justify-center self-center px-6"
+      >
         <Reveal delay={0} className="mb-10 items-center gap-4">
-          <Logo size={88} />
-          <Text className="font-inter-bold text-4xl text-foreground">Evolvi</Text>
+          <Logo size={88} className="self-center" />
+          <Text className="text-center font-inter-bold text-4xl text-foreground">Evolvi</Text>
           <Text className="text-center font-sans text-base text-muted">Monitora allenamenti, dieta e progressi.</Text>
         </Reveal>
 
