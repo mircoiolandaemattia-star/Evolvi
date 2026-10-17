@@ -2,7 +2,7 @@
   "name": "evolvi",
   "license": "0BSD",
   "main": "index.js",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo/ui": "~57.0.19",
