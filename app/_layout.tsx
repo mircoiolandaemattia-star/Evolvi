@@ -16,6 +16,9 @@ import { AppErrorBoundary } from "@/components/AppErrorBoundary";
 import { isProfileMissing, useProfile } from "@/lib/profileQueries";
 import { configureNotifications } from "@/lib/notifications";
 import { loadReduceMotion } from "@/lib/motionSettings";
+// Deve stare prima di qualunque schermata: registra i componenti Reanimated
+// con NativeWind, altrimenti su web la loro `className` viene ignorata.
+import "@/lib/animatedInterop";
 import "../global.css";
 
 // Tieni visibile lo splash finché font e stato auth non sono pronti.
