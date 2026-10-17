@@ -24,6 +24,7 @@ const DAY_OF_WEEK: Record<number, DayOfWeek> = {
 };
 
 export type QuickStats = {
+  /** Giorni consecutivi con almeno un pasto registrato nel diario. */
   streakDays: number;
   weeklyHours: number;
   totalSessions: number;

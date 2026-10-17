@@ -15,7 +15,7 @@ import { WorkoutTodayCard } from "@/components/home/WorkoutTodayCard";
 import { MealsSummaryCard } from "@/components/home/MealsSummaryCard";
 import { QuickStats } from "@/components/home/QuickStats";
 
-/** Finestra (giorni) interrogata per la streak dei pasti. */
+/** Finestra (giorni) interrogata per la streak. */
 const STREAK_WINDOW_DAYS = 90;
 
 function getGreeting(date: Date): string {
@@ -36,7 +36,7 @@ function formatToday(date: Date): string {
 
 /**
  * Statistiche rapide della Home:
- * - **streak pasti**: giorni consecutivi con almeno un pasto registrato
+ * - **streak**: giorni consecutivi con almeno un pasto registrato
  *   (almeno un alimento nel diario); se oggi non c'è ancora parte da ieri,
  *   così non si azzera al mattino;
  * - **ore settimanali**: durata delle sessioni dalla mezzanotte di lunedì;
@@ -61,7 +61,7 @@ function computeQuickStats(
     .filter((session) => new Date(session.startedAt) >= weekStart)
     .reduce((sum, session) => sum + session.durationMinutes, 0);
 
-  // Streak sui pasti: la riga del giorno serve solo ad aprire la serie,
+  // Streak: la riga del giorno serve solo ad aprire la serie,
   // non è lei a far parte il giorno (ieri resta contato anche se oggi
   // non si è ancora registrato nulla).
   const daysWithMeals = new Set(mealDays);
@@ -103,7 +103,7 @@ export default function HomeScreen() {
   const planQuery = useWorkoutPlan(activePlanId);
   const sessionsQuery = useWorkoutSessions();
 
-  // Finestra per la streak dei pasti: gli ultimi STREAK_WINDOW_DAYS giorni,
+  // Finestra per la streak: gli ultimi STREAK_WINDOW_DAYS giorni,
   // una sola richiesta (le date passate con ?from=&to=).
   const streakFrom = useMemo(() => {
     const from = new Date();

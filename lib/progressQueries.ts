@@ -328,37 +328,15 @@ export function useCalorieSeries(from: string, to: string): CalorieSeries {
 /* --------------------------- Statistiche allenamento ----------------------- */
 
 export type WorkoutStats = {
-  streakDays: number;
   sessions: number;
   hours: number;
 };
 
 /**
- * Streak = giorni consecutivi con almeno una sessione. Il conteggio parte
- * da oggi, o da ieri se oggi non si è ancora allenati (la giornata è in
- * corso); se l'ultimo allenamento è più vecchio, la streak è 0.
- */
-function computeStreak(sessions: WorkoutSession[]): number {
-  const days = new Set(sessions.map((s) => toISODate(new Date(s.startedAt))));
-  const cursor = new Date();
-  if (!days.has(toISODate(cursor))) {
-    cursor.setDate(cursor.getDate() - 1);
-  }
-  let streak = 0;
-  while (days.has(toISODate(cursor))) {
-    streak += 1;
-    cursor.setDate(cursor.getDate() - 1);
-  }
-  return streak;
-}
-
-/**
  * Statistiche del periodo dai dati già disponibili (nessun endpoint nuovo):
  * `GET /workout-sessions` condiviso con Scheda. Le sessioni contate sono
  * solo quelle concluse (il mapper le filtra e ne ha già la durata in
- * `durationMinutes`); streak su `startedAt` dentro l'intervallo, ore sul
- * complesso delle sessioni del periodo, streak invece indipendente dal
- * periodo selezionato.
+ * `durationMinutes`); ore sul complesso delle sessioni del periodo.
  */
 export function deriveWorkoutStats(
   sessions: WorkoutSession[],
@@ -376,7 +354,6 @@ export function deriveWorkoutStats(
   const minutes = inPeriod.reduce((sum, session) => sum + session.durationMinutes, 0);
 
   return {
-    streakDays: computeStreak(sessions),
     sessions: inPeriod.length,
     hours: round1(minutes / 60),
   };

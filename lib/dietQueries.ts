@@ -282,7 +282,7 @@ export function useAddFoodItems() {
     },
     onSuccess: () => {
       // Il pasto può essere appena nato: ricarica lista (singola data, usata
-      // dal diario) e intervallo (streak pasti della Home e grafici).
+      // dal diario) e intervallo (streak della Home e grafici).
       void queryClient.invalidateQueries({ queryKey: dietKeys.mealsAll });
       void queryClient.invalidateQueries({ queryKey: dietKeys.foodItemsAll });
     },

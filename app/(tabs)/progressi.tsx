@@ -209,7 +209,7 @@ export default function ProgressiScreen() {
   const statsCard = (
     <Card className="gap-3" delay={260}>
       <Text className="font-inter-semibold text-sm text-foreground">Statistiche allenamento</Text>
-      <WorkoutStatsGrid streakDays={stats.streakDays} sessions={stats.sessions} hours={stats.hours} />
+      <WorkoutStatsGrid sessions={stats.sessions} hours={stats.hours} />
     </Card>
   );
 
