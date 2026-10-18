@@ -955,6 +955,34 @@ def main():
             status=201, test=bm_created_min)
         bm_delete_id = bm_ids[1]
 
+        def profile_synced_805(payload):
+            # Il 26/09 è la pesata più recente: il profilo deve portare 80.5,
+            # non 81 del 20/09 (misurazione vecchia). Questo profilo seedato
+            # non ha nascita/altezza: si allinea il peso, niente ricalcolo.
+            ok = payload.get("weight_kg") == 80.5
+            info = json.dumps({k: payload.get(k)
+                               for k in ("weight_kg", "daily_calorie_target")})[:300]
+            return ok, info
+
+        run("POST peso → profilo allineato (solo la pesata più recente)", "GET",
+            "/api/users/me", status=200, test=profile_synced_805)
+
+        # Profilo completo (onboarding): il peso aggiorna anche il TDEE
+        run("POST peso (profilo completo) → 201", "POST",
+            "/api/body-measurements",
+            body={"date": "2026-10-01", "weight_kg": 91},
+            status=201, token=onboard_token)
+
+        def profile_tdee_91(payload):
+            want = expected_targets(birth, "male", 180, 91, "gain", "moderate")
+            got = {k: payload.get(k) for k in ("weight_kg", *want)}
+            ok = got.pop("weight_kg") == 91 and got == want
+            return ok, json.dumps(got)
+
+        run("GET /users/me (onboarding) → peso e TDEE allineati", "GET",
+            "/api/users/me", status=200, token=onboard_token,
+            test=profile_tdee_91)
+
         run("POST /body-measurements senza campi numerici → 400", "POST",
             "/api/body-measurements", body={"date": "2026-09-26"},
             status=400, code="VALIDATION_ERROR")
@@ -1000,6 +1028,13 @@ def main():
             body={"waist_cm": 83.5, "weight_kg": 79.8}, status=200,
             test=lambda p: (p["waist_cm"] == 83.5 and p["weight_kg"] == 79.8
                             and p["chest_cm"] == 100, str(p)[:300]))
+
+        def profile_synced_798(payload):
+            ok = payload.get("weight_kg") == 79.8
+            return ok, str(payload.get("weight_kg"))
+
+        run("PUT peso → profilo allineato", "GET", "/api/users/me",
+            status=200, test=profile_synced_798)
         run("PUT /body-measurements corpo vuoto → 400", "PUT",
             f"/api/body-measurements/{bm_id}", body={}, status=400,
             code="BAD_REQUEST")

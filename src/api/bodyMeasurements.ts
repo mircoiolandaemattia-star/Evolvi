@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { HttpError } from "./errors";
+import { computeTargets } from "./lib/tdee";
 import type { Handler } from "./types";
 import { dateSchema, idSchema, parse, rangeQuerySchema } from "./validate";
 
@@ -45,6 +46,44 @@ async function ownedMeasurement(id: string, userId: string) {
   return measurement;
 }
 
+/**
+ * Allinea il peso del profilo con la misurazione appena scritta e
+ * ricalcola i target nutrizionali: stessa formula di `PUT /users/me`
+ * (`computeTargets`), così il TDEE si adegua appena si pesa.
+ *
+ * Se esiste una pesata più recente il profilo resta com'è: una
+ * misurazione datata nel passato non è il peso corrente. Profilo
+ * assente (onboarding non completato) o dati incompleti per la formula
+ * si aggiorna solo il peso, senza ricalcolare i target.
+ */
+async function syncProfileWeight(userId: string, date: Date, weightKg: number) {
+  const newer = await prisma.body_measurements.findFirst({
+    where: { user_id: userId, weight_kg: { not: null }, date: { gt: date } },
+    select: { id: true },
+  });
+  if (newer) return;
+
+  const profile = await prisma.users.findUnique({ where: { id: userId } });
+  if (!profile) return;
+
+  const targets =
+    profile.birth_date && profile.height_cm !== null
+      ? computeTargets({
+          birthDate: profile.birth_date,
+          gender: profile.gender,
+          heightCm: profile.height_cm,
+          weightKg,
+          goal: profile.goal,
+          activityLevel: profile.activity_level,
+        })
+      : undefined;
+
+  await prisma.users.update({
+    where: { id: userId },
+    data: { weight_kg: weightKg, ...targets },
+  });
+}
+
 export const listBodyMeasurements: Handler = async (req) => {
   const { from, to } = parse(rangeQuerySchema, req.query);
   // Range opzionale con estremi inclusi; senza parametri torna tutto
@@ -64,9 +103,13 @@ export const listBodyMeasurements: Handler = async (req) => {
 
 export const createBodyMeasurement: Handler = async (req) => {
   const data = parse(createBody, req.body);
+  const date = new Date(data.date);
   const measurement = await prisma.body_measurements.create({
-    data: { ...data, date: new Date(data.date), user_id: req.user_id },
+    data: { ...data, date, user_id: req.user_id },
   });
+  if (data.weight_kg !== undefined) {
+    await syncProfileWeight(req.user_id, date, data.weight_kg);
+  }
   return { status: 201, body: measurement };
 };
 
@@ -86,6 +129,9 @@ export const updateBodyMeasurement: Handler = async (req) => {
     where: { id },
     data: { ...data, ...(data.date !== undefined ? { date: new Date(data.date) } : {}) },
   });
+  if (data.weight_kg !== undefined) {
+    await syncProfileWeight(req.user_id, measurement.date, data.weight_kg);
+  }
   return { status: 200, body: measurement };
 };
 

@@ -231,7 +231,7 @@ percorso JWKS copre anche i progetti cloud con *Custom Access Token Keys*
 | GET | `/api/food-items/lookup?barcode=` | proxy **Open Food Facts**: prodotto per codice a barre con valori **per 100 g** (`404 PRODUCT_NOT_FOUND`, `502 FOOD_FACTS_UNAVAILABLE`, cache 24h); registrata prima di `/food-items/:id` |
 | GET / PUT / DELETE | `/api/food-items/:id` | proprietà a cascata pasto → utente |
 | GET | `/api/body-measurements?from=&to=` | range opzionale; POST richiede almeno un campo numerico |
-| POST / GET / PUT / DELETE | `/api/body-measurements[/:id]` | `201` + CRUD con scoping diretto |
+| POST / GET / PUT / DELETE | `/api/body-measurements[/:id]` | `201` + CRUD con scoping diretto; una pesata aggiorna peso profilo e TDEE |
 | GET / POST | `/api/progress-photos?from=&to=` | range opzionale; `photo_url` obbligatorio |
 | DELETE | `/api/progress-photos/:id` | **nessun** GET/PUT by `:id` (rotte assenti → `404 ROUTE_NOT_FOUND`) |
 | GET / POST | `/api/reminders` | `time` in formato `HH:MM`, `days_of_week` interi 0–6 |

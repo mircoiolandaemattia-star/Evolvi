@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, isApiError } from "./api";
 import { supabase } from "./supabase";
 import { useFoodQueries, useMealsInRange } from "./dietQueries";
+import { profileKeys } from "./profileQueries";
 import type { ProgressPhoto, WorkoutSession } from "@/types";
 
 /**
@@ -511,6 +512,9 @@ export function useAddMeasurement() {
     onSuccess: () => {
       // Le serie sono per intervallo: invalida ogni periodo.
       void queryClient.invalidateQueries({ queryKey: progressKeys.measurementsAll });
+      // La misurazione di peso allinea il profilo lato server (peso + TDEE):
+      // rileggi i target per mostrare subito il fabbisogno aggiornato.
+      void queryClient.invalidateQueries({ queryKey: profileKeys.me });
     },
   });
 }
