@@ -113,7 +113,7 @@ export function ReplaceExerciseModal({
           style={{ justifyContent: isWide ? "center" : "flex-end", alignItems: "center" }}
         >
           <View
-            className={`w-full max-w-md overflow-hidden border-border bg-surface ${
+            className={`max-h-[92%] w-full max-w-md overflow-hidden border-border bg-surface ${
               isWide ? "rounded-2xl border" : "rounded-t-3xl border-t"
             }`}
           >
@@ -140,6 +140,7 @@ export function ReplaceExerciseModal({
                   placeholder="Cerca per esercizio o muscolo…"
                   placeholderTextColor="#64748B"
                   accessibilityLabel="Cerca un esercizio"
+                  autoFocus
                   maxLength={200}
                   className="flex-1 py-2.5 font-sans text-sm text-foreground"
                 />
