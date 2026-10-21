@@ -3,6 +3,7 @@ import { ScrollView, Text, View } from "react-native";
 import { Screen } from "@/components/Screen";
 import { useIsWide } from "@/lib/layout";
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
+import { ReleaseUpdateBanner } from "@/components/ReleaseUpdateBanner";
 import { useAuth } from "@/lib/auth";
 import { dateToString } from "@/lib/dietaStore";
 import { useDiaryDay, useMealsInRange } from "@/lib/dietQueries";
@@ -193,6 +194,8 @@ export default function HomeScreen() {
           </Text>
           <Text className="font-sans text-sm leading-5 text-muted">{data.dateLabel}</Text>
         </View>
+
+        <ReleaseUpdateBanner />
 
         <PWAInstallBanner />
 
