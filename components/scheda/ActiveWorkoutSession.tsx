@@ -373,7 +373,9 @@ export function ActiveWorkoutSession({ day, autoResume = false }: ActiveWorkoutS
   function patchCurrentExercise(patch: Partial<SessionExercise>) {
     const previous = exercises[index];
     if (!previous) return;
-    const next = { ...previous, ...patch, edited: true };
+    // Ogni patch marca "modificato", tranne quando `edited` arriva esplicito:
+    // è l'annulla (✕) del pannello a riportare il badge com'era all'apertura.
+    const next = { ...previous, ...patch, edited: patch.edited ?? true };
     setExercises((prev) => prev.map((ex, i) => (i === index ? next : ex)));
 
     if (patch.sets !== undefined) {
@@ -937,6 +939,10 @@ export function ActiveWorkoutSession({ day, autoResume = false }: ActiveWorkoutS
  * ripetizioni, riposo e sostituzione quando il macchinario non è
  * disponibile. Il `key` è l'id dell'esercizio, così ogni passaggio ad
  * altro esercizio riparte dai valori giusti.
+ *
+ * Le modifiche si applicano man mano che si scrive; la ✕ annulla tutto
+ * riportando l'esercizio ai valori dell'apertura (nome compreso, se si è
+ * sostituito), mentre "Fine" tiene e chiude.
  */
 function ExerciseEditPanel({
   exercise,
@@ -952,6 +958,21 @@ function ExerciseEditPanel({
   const [sets, setSets] = useState(String(exercise.sets));
   const [reps, setReps] = useState(String(exercise.reps));
   const [rest, setRest] = useState(exercise.restSeconds ? String(exercise.restSeconds) : "");
+
+  // Fotografia all'apertura (montaggio): è il punto di ritorno della ✕.
+  const initial = useRef({ ...exercise }).current;
+
+  function cancelEdit() {
+    onPatch({
+      name: initial.name,
+      sets: initial.sets,
+      reps: initial.reps,
+      restSeconds: initial.restSeconds,
+      edited: initial.edited,
+      replaced: initial.replaced,
+    });
+    onClose();
+  }
 
   function changeSets(text: string) {
     setSets(text);
@@ -974,9 +995,20 @@ function ExerciseEditPanel({
 
   return (
     <View className="mt-3 gap-3 rounded-xl border border-border bg-background/60 p-3">
-      <Text className="font-inter-semibold text-xs uppercase tracking-wide text-muted">
-        Modifica per questa sessione
-      </Text>
+      <View className="flex-row items-center">
+        <Text className="flex-1 font-inter-semibold text-xs uppercase tracking-wide text-muted">
+          Modifica per questa sessione
+        </Text>
+        <Pressable
+          onPress={cancelEdit}
+          accessibilityRole="button"
+          accessibilityLabel="Annulla le modifiche"
+          hitSlop={8}
+          className="h-8 w-8 cursor-pointer items-center justify-center rounded-lg bg-background/60 active:opacity-80"
+        >
+          <X size={16} color="#94A3B8" strokeWidth={2.4} />
+        </Pressable>
+      </View>
 
       <View className="flex-row gap-2">
         <NumberField

@@ -9,7 +9,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { Check, Search, X } from "lucide-react-native";
+import { Check, Keyboard, Search, X } from "lucide-react-native";
 import { MOCK_EXERCISE_LIBRARY, WORKOUT_EQUIPMENT_OPTIONS } from "@/lib/mock-data";
 import { useIsWide } from "@/lib/layout";
 
@@ -30,6 +30,10 @@ function equipmentLabel(key: string): string {
  * Sostituzione di un esercizio **durante la sessione**: lista della libreria
  * raggruppata per gruppo muscolare, con ricerca e attrezzatura richiesta
  * (serve quando il macchinario è occupato o non c'è).
+ *
+ * Se la ricerca non trova (o non ha bisogno di) una voce in libreria, il
+ * testo scritto si può usare **come esercizio a mano**: l'app non deve
+ * bloccare un movimento che la libreria non conosce.
  *
  * La scelta tocca solo la sessione in corso: la scheda resta quella
  * impostata in origine.
@@ -59,6 +63,38 @@ export function ReplaceExerciseModal({
   }, [query]);
 
   const nothingFound = groups.length === 0;
+
+  // Testo digitato pronto da usare come esercizio: c'è quando non c'è (o
+  // non serve) una voce di libreria identica, così la ricerca non è un vicolo
+  // cieco. Max 200 come lo zod del backend (`exercises[].name`).
+  const customName = query.trim();
+  const inLibrary =
+    customName.length > 0 &&
+    MOCK_EXERCISE_LIBRARY.some((item) => item.name.toLowerCase() === customName.toLowerCase());
+  const manualRow =
+    customName.length > 0 && !inLibrary ? (
+      <Pressable
+        onPress={() => {
+          onSelect(customName);
+          onClose();
+        }}
+        accessibilityRole="button"
+        accessibilityLabel={`Usa ${customName} come esercizio scritto a mano`}
+        className="flex-row cursor-pointer items-center gap-3 rounded-xl border border-primary/40 bg-primary/10 p-3 active:opacity-80"
+      >
+        <View className="h-9 w-9 items-center justify-center rounded-lg bg-primary/15">
+          <Keyboard size={17} color="#F97316" strokeWidth={2.2} />
+        </View>
+        <View className="flex-1">
+          <Text className="font-inter-semibold text-sm text-foreground" numberOfLines={2}>
+            {customName}
+          </Text>
+          <Text className="mt-0.5 font-sans text-xs text-muted">
+            Scritto a mano · vale solo per questa sessione
+          </Text>
+        </View>
+      </Pressable>
+    ) : null;
 
   return (
     <Modal
@@ -104,6 +140,7 @@ export function ReplaceExerciseModal({
                   placeholder="Cerca per esercizio o muscolo…"
                   placeholderTextColor="#64748B"
                   accessibilityLabel="Cerca un esercizio"
+                  maxLength={200}
                   className="flex-1 py-2.5 font-sans text-sm text-foreground"
                 />
                 {query ? (
@@ -127,9 +164,10 @@ export function ReplaceExerciseModal({
               keyboardShouldPersistTaps="handled"
               contentContainerClassName="gap-4 p-4 pb-8"
             >
+              {nothingFound ? manualRow : null}
               {nothingFound ? (
                 <Text className="py-6 text-center font-sans text-sm text-muted">
-                  Nessun esercizio per “{query}”.
+                  Nessun risultato in libreria per “{query}”.
                 </Text>
               ) : (
                 groups.map(([group, items]) => (
@@ -172,6 +210,7 @@ export function ReplaceExerciseModal({
                   </View>
                 ))
               )}
+              {nothingFound ? null : manualRow}
             </ScrollView>
           </View>
         </View>
