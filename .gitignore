@@ -58,7 +58,7 @@ example
 /android
 
 # Skill e tool locali
-/.opencode/
+/.claude/
 /.idea/
 
 # Password DB locali (non versionare mai)
