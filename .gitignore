@@ -61,6 +61,9 @@ example
 /.opencode/
 /.idea/
 
+# Audit di sicurezza: documento di lavoro, mai versionato
+/SECURITY_AUDIT.md
+
 # Password DB locali (non versionare mai)
 .dbpasswd.txt
 skills-lock.json
