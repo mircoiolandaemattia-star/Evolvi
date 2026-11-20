@@ -70,6 +70,9 @@ export const analyzeMealPhoto: Handler = async (req) => {
       PROMPT_FORMAT,
     attachments: [{ mimeType: data.mime_type, data: toBase64(data.photo) }],
     temperature: 0.2,
+    // Stima di un pasto: non serve ragionamento, solo riconoscimento. Il
+    // thinking di default allungava la risposta oltre il timeout.
+    thinkingLevel: "low",
   });
 
   // 3. Solo ora l'uso è reale: una chiamata fallita non consuma quota.

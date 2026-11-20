@@ -264,9 +264,17 @@ ritenta lo stesso modello (`GEMINI_503_RETRIES`, default 1, con attesa
 `GEMINI_RETRY_DELAY_MS` crescente), su `404`, `429` o 503 esauriti passa al
 fallback (`GEMINI_FALLBACK_MODELS`, default `gemini-3.5-flash-lite`, vuoto =
 nessun fallback), che ha un budget proprio. Tutti i tentativi stanno dentro
-un unico budget `GEMINI_TIMEOUT_MS` (default 45s). `400`, timeout e errori di
+un unico budget `GEMINI_TIMEOUT_MS` (default 90s). `400`, timeout e errori di
 rete non cambiano modello: non dipendono dal singolo modello e ritentare
 aumenterebbe solo la latenza.
+
+Le chiamate con **immagine o PDF** (`meal-photo`, `file-read`) passano
+`thinkingLevel: "low"`: i modelli recenti ragionano prima di rispondere e su
+una stima di un pasto il ragionamento è la voce più costosa, fino a sfondare
+il budget. Se un modello della catena non conosce `thinkingConfig` (400), il
+wrapper riprova quel modello una volta senza il campo invece di far fallire
+tutta la funzione AI. Il client aspetta 150 s per le chiamate AI, così il
+budget di 90 s resta coperto anche dopo il risveglio dell'istanza Render.
 
 Il gating legge `users.subscription_status` **ad ogni richiesta** dalla
 tabella (niente valori cacheati lato client; il flag si cambia a mano da

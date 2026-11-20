@@ -33,14 +33,28 @@ import { HttpError } from "../errors";
  * - gli altri status (400/401/403/500) e i timeout/rete **non**
  *   cambiano modello: sono errori che riguardano la richiesta o la chiave,
  *   non il singolo modello, e ritentare aumenterebbe solo la latenza.
+ *
+ * Latenza della visione: i modelli recenti "ragionano" prima di rispondere e
+ * su una foto di un pasto (compito semplice) il thinking è la voce più
+ * costosa, al punto da sfondare il budget. Gli endpoint con immagine/PDF
+ * passano quindi `thinkingLevel: "low"`: la stima resta accurata ma la
+ * risposta arriva in pochi secondi. Se un modello della catena non conosce
+ * `thinkingConfig` (400 esplicito), si riprova quel modello **una volta
+ * senza** il campo, invece di far fallire tutta la funzione AI.
  */
 // I nuovi progetti possono usare solo i modelli recenti (Google ha ritirato
 // gemini-2.5-flash con 404 "no longer available to new users").
 const DEFAULT_MODEL = "gemini-3.8-flash";
 const DEFAULT_FALLBACK_MODELS = "gemini-3.5-flash-lite";
-const DEFAULT_TIMEOUT_MS = 45_000;
+// 45 s bastavano ai modelli "senza thinking"; con le immagini il turno
+// completo (upload inline + generazione) può superare i 60 s anche quando
+// va tutto bene. Il client AI aspetta 150 s, quindi c'è margine.
+const DEFAULT_TIMEOUT_MS = 90_000;
 const DEFAULT_503_RETRIES = 1;
 const DEFAULT_RETRY_DELAY_MS = 800;
+
+/** Livello di ragionamento richiesto al modello (`thinkingConfig`). */
+export type GeminiThinkingLevel = "minimal" | "low" | "medium" | "high";
 
 export interface GeminiAttachment {
   /** MIME type dell'allegato (`image/jpeg`, `image/png`, `application/pdf`). */
@@ -63,6 +77,14 @@ export interface GeminiRequest<T> {
   schema?: z.ZodType<T>;
   /** Temperatura di campionamento (default del modello se omessa). */
   temperature?: number;
+  /**
+   * Quanto deve "ragionare" il modello prima di rispondere. Va impostato a
+   * `"low"` per i compiti di visione (foto di un pasto, lettura di un
+   * documento): senza vincolo i modelli recenti usano il livello alto di
+   * default e la latenza può superare il timeout, senza vantaggi pratici
+   * sulla qualità della stima.
+   */
+  thinkingLevel?: GeminiThinkingLevel;
 }
 
 /** Interazione JSON restituita da Gemini: solo il testo della prima candidata. */
@@ -205,17 +227,31 @@ export async function generateGemini<T = string>(request: GeminiRequest<T>): Pro
     });
   }
 
-  const payload = {
+  // La configurazione di generazione cambia solo per `thinkingConfig`: si
+  // tengono due body pronti, così il retry "modello senza thinking" costa
+  // solo un secondo POST e nessuna ricostruzione del payload (che contiene
+  // anche la foto in base64).
+  const generationConfig: Record<string, unknown> = {
+    ...(request.temperature !== undefined ? { temperature: request.temperature } : {}),
+    // Chiede a Gemini JSON puro quando serve una struttura tipizzata
+    ...(request.schema ? { responseMimeType: "application/json" } : {}),
+  };
+  const payloadWithoutThinking = {
     contents: [{ role: "user", parts }],
     ...(request.system
       ? { systemInstruction: { parts: [{ text: request.system }] } }
       : {}),
-    generationConfig: {
-      ...(request.temperature !== undefined ? { temperature: request.temperature } : {}),
-      // Chiede a Gemini JSON puro quando serve una struttura tipizzata
-      ...(request.schema ? { responseMimeType: "application/json" } : {}),
-    },
+    generationConfig,
   };
+  const payload = request.thinkingLevel
+    ? {
+        ...payloadWithoutThinking,
+        generationConfig: {
+          ...generationConfig,
+          thinkingConfig: { thinkingLevel: request.thinkingLevel },
+        },
+      }
+    : payloadWithoutThinking;
 
   const timeoutMs = envTimeoutMs();
   const retries503 = env503Retries();
@@ -226,14 +262,18 @@ export async function generateGemini<T = string>(request: GeminiRequest<T>): Pro
   const deadline = Date.now() + timeoutMs;
 
   /** Un singolo POST su un dato modello: restituisce status + corpo. */
-  const postToModel = async (model: string, budgetMs: number): Promise<{ status: number; raw: string }> => {
+  const postToModel = async (
+    model: string,
+    budgetMs: number,
+    body: unknown,
+  ): Promise<{ status: number; raw: string }> => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), budgetMs);
     try {
       const response = await fetch(`${baseUrl}/v1beta/models/${model}:generateContent`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(body),
         signal: controller.signal,
       });
       return { status: response.status, raw: await response.text() };
@@ -258,6 +298,9 @@ export async function generateGemini<T = string>(request: GeminiRequest<T>): Pro
   let status = 0;
   let raw = "";
   let lastError: HttpError | undefined;
+  // Un modello che non accetta `thinkingConfig` risponde 400: da lì in poi
+  // (anche per i fallback) si usa il body senza thinking.
+  let thinkingUnsupported = false;
 
   // Catena dei modelli: 404 (ritirato) o 503 senza tentativi rimasti
   // passano al modello successivo; ogni altro errore è definitivo.
@@ -269,9 +312,26 @@ export async function generateGemini<T = string>(request: GeminiRequest<T>): Pro
         throw lastError ??
           new HttpError(504, "GEMINI_TIMEOUT", `Gemini non ha risposto entro ${timeoutMs} ms.`, { model });
       }
-      ({ status, raw } = await postToModel(model, remainingMs));
+      ({ status, raw } = await postToModel(
+        model,
+        remainingMs,
+        thinkingUnsupported ? payloadWithoutThinking : payload,
+      ));
 
       if (status >= 200 && status < 300) break; // OK: esce dai tentativi
+
+      // Il modello non conosce `thinkingConfig`: si riprova lo stesso
+      // modello una sola volta senza, così un livello di thinking non
+      // supportato non fa fallire l'intera funzione AI.
+      if (
+        status === 400 &&
+        !thinkingUnsupported &&
+        request.thinkingLevel !== undefined &&
+        /thinking/i.test(raw)
+      ) {
+        thinkingUnsupported = true;
+        continue;
+      }
 
       const error = googleStatusError(status, raw, model);
       // 400/401/403/500/timeout: errori della richiesta o della chiave,

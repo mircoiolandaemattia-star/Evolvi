@@ -18,8 +18,13 @@ import { workoutKeys } from "./workoutQueries";
  * (`PREMIUM_REQUIRED`, `DAILY_LIMIT_REACHED`, `GEMINI_*`).
  */
 
-/** L'analisi AI può impiegare diversi secondi: timeout dedicato (default60s). */
-const AI_TIMEOUT_MS = 120_000;
+/**
+ * L'analisi AI può impiegare diversi secondi: timeout dedicato. Il backend
+ * ha un budget di 90 s per la chiamata a Gemini, a cui va aggiunto il
+ * risveglio dell'istanza Render (~60 s): 150 s coprono entrambi e restano
+ * sotto qualunque timeout di piattaforma.
+ */
+const AI_TIMEOUT_MS = 150_000;
 
 /** Riga di stima di `POST /ai/meal-photo`: gli stessi campi di `food_items`. */
 export interface AiFoodItem {
@@ -49,7 +54,14 @@ export type AnalyzeMealPhotoInput = {
 
 /** Gli errori 4xx sono risposte, non intoppi: mai in retry. */
 function noRetry(failureCount: number, error: unknown): boolean {
-  return isApiError(error) ? error.status >= 500 && failureCount < 1 : failureCount < 2;
+  if (isApiError(error)) {
+    // Un timeout ha già consumato tutto il budget del server: ripetere la
+    // stessa richiesta aggiunge altri 90 s di attesa senza probabilità
+    // migliore, quindi si restituisce subito l'errore all'utente.
+    if (error.code === "GEMINI_TIMEOUT") return false;
+    return error.status >= 500 && failureCount < 1;
+  }
+  return failureCount < 2;
 }
 
 /** Analisi di una foto pasto → bozza di alimenti da confermare. */

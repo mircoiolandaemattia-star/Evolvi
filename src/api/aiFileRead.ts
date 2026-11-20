@@ -69,6 +69,9 @@ export const readFile: Handler = async (req) => {
       `${WORKOUT_FORMAT}\n${DIET_FORMAT}`,
     attachments: [{ mimeType: data.mime_type, data: data.file.replace(/^data:[^,]*,/, "") }],
     temperature: 0.1,
+    // Estrazione fedele da foto/PDF: il livello basso guadagna latenza senza
+    // perdere qualità (il modello non deve "inventare" una strategia).
+    thinkingLevel: "low",
   });
 
   // Nessun salvataggio qui: la bozza torna al client per la conferma.

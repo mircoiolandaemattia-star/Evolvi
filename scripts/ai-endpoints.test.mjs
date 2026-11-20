@@ -90,7 +90,7 @@ async function call(baseUrl, method, route, { token, body, raw } = {}) {
 
 /* ----------------------------------------------------------- Gemini mock */
 
-const mock = { queue: [], calls: 0, urls: [] };
+const mock = { queue: [], calls: 0, urls: [], bodies: [] };
 
 /** Risposta Gemini valida con un payload JSON già serializzato dentro. */
 function geminiJson(payload) {
@@ -113,6 +113,7 @@ function startMockGemini() {
         parsed = null;
       }
       const text = parsed?.contents?.[0]?.parts?.[0]?.text;
+      mock.bodies.push(parsed);
       if (typeof text !== "string") {
         res.writeHead(400, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: { message: "mock: payload generateContent non valido" } }));
@@ -507,6 +508,45 @@ async function main() {
       body: { photo: "AAAA", mime_type: "image/jpeg" },
     });
     check("429 sul primario → quota del modello fallback libera → 201", rateFallback.status === 201, rateFallback.text.slice(0, 300));
+
+    /* --- thinking basso sulla visione + retry se il modello non lo supporta */
+    mock.queue.push(geminiJson(MEAL_PHOTO_DRAFT));
+    const thinkingCall = await call(base, "POST", "/api/ai/meal-photo", {
+      token: tokens.premium,
+      body: { photo: "AAAA", mime_type: "image/jpeg" },
+    });
+    const thinkingBody = mock.bodies[mock.bodies.length - 1];
+    check(
+      "meal-photo → thinkingConfig.thinkingLevel = low",
+      thinkingCall.status === 201 &&
+        thinkingBody?.generationConfig?.thinkingConfig?.thinkingLevel === "low",
+      JSON.stringify(thinkingBody?.generationConfig),
+    );
+
+    const callsBeforeNoThinking = mock.calls;
+    mock.queue.push(
+      {
+        status: 400,
+        body: { error: { code: 400, message: 'Unknown name "thinkingConfig": cannot find field.' } },
+      },
+      geminiJson(MEAL_PHOTO_DRAFT),
+    );
+    const thinkingRetry = await call(base, "POST", "/api/ai/meal-photo", {
+      token: tokens.premium,
+      body: { photo: "AAAA", mime_type: "image/jpeg" },
+    });
+    const retryBody = mock.bodies[mock.bodies.length - 1];
+    check(
+      "400 su thinkingConfig → retry senza thinking → 201",
+      thinkingRetry.status === 201 && mock.calls - callsBeforeNoThinking === 2,
+      `atteso 201 in 2 chiamate, ricevuto ${thinkingRetry.status} in ${mock.calls - callsBeforeNoThinking}: ${thinkingRetry.text.slice(0, 200)}`,
+    );
+    check(
+      "retry: thinkingConfig assente, resto della config intatto",
+      retryBody?.generationConfig?.thinkingConfig === undefined &&
+        retryBody?.generationConfig?.responseMimeType === "application/json",
+      JSON.stringify(retryBody?.generationConfig),
+    );
   } finally {
     await prisma.users.deleteMany({ where: { id: { in: [freeId, free2Id, premiumId] } } }).catch(() => {});
     await prisma.$disconnect().catch(() => {});
